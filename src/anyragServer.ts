@@ -4,12 +4,10 @@ import * as fs from 'fs';
 import * as cp from 'child_process';
 
 export class AnyRAGServer {
-    private serverProcess: cp.ChildProcess | null = null;
     private venvPath: string;
     private pythonPath: string;
     private binaryPath: string;
     private launcherPath: string;
-    private isRunning: boolean = false;
 
     constructor(private context: vscode.ExtensionContext) {
         const storageUri = context.globalStorageUri;
@@ -96,8 +94,7 @@ export class AnyRAGServer {
         // Install dependencies
         await this.installDependencies();
 
-        // Start MCP server
-        await this.start(licenseKey);
+        // Don't start the server here - MCP client will start it via stdio transport
     }
 
     private async createVenv(): Promise<void> {
@@ -189,55 +186,6 @@ if __name__ == "__main__":
         });
     }
 
-    async start(licenseKey?: string): Promise<void> {
-        if (this.isRunning) {
-            return;
-        }
-
-        const env = { ...process.env };
-        if (licenseKey) {
-            env.ANYRAG_LICENSE_KEY = licenseKey;
-        }
-
-        this.serverProcess = cp.spawn(this.pythonPath, [this.launcherPath], {
-            cwd: this.context.globalStorageUri.fsPath,
-            env,
-            stdio: ['ignore', 'pipe', 'pipe']
-        });
-
-        this.serverProcess.stdout?.on('data', (data) => {
-            console.log('[AnyRAG Server]', data.toString());
-        });
-
-        this.serverProcess.stderr?.on('data', (data) => {
-            console.error('[AnyRAG Server]', data.toString());
-        });
-
-        this.serverProcess.on('exit', (code) => {
-            console.log(`AnyRAG Server exited with code ${code}`);
-            this.isRunning = false;
-        });
-
-        this.isRunning = true;
-
-        // Wait for server to be ready
-        await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-
-    async stop(): Promise<void> {
-        if (this.serverProcess && this.isRunning) {
-            this.serverProcess.kill();
-            this.serverProcess = null;
-            this.isRunning = false;
-        }
-    }
-
-    async restart(licenseKey?: string): Promise<void> {
-        await this.stop();
-        await this.start(licenseKey);
-    }
-
-    getStatus(): boolean {
-        return this.isRunning;
-    }
+    // Server lifecycle is managed by MCP SDK stdio transport
+    // No need to manually start/stop
 }

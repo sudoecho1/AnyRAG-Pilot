@@ -92,10 +92,16 @@ export class MCPClient {
             throw new Error('MCP client not connected');
         }
 
+        // No timeout - let indexing complete however long it takes
         const result = await this.client.callTool({
             name: 'index_folder',
-            arguments: params as Record<string, unknown>
-        });
+            arguments: params as Record<string, unknown>,
+            _meta: {
+                progressToken: 'folder-index'
+            }
+        }, {
+            timeout: 0 // Disable timeout
+        } as any);
 
         return (result.content as any)[0];
     }
@@ -105,10 +111,16 @@ export class MCPClient {
             throw new Error('MCP client not connected');
         }
 
+        // No timeout - GitHub cloning and indexing can take a long time
         const result = await this.client.callTool({
             name: 'index_github_repo',
-            arguments: params as Record<string, unknown>
-        });
+            arguments: params as Record<string, unknown>,
+            _meta: {
+                progressToken: 'github-index'
+            }
+        }, {
+            timeout: 0 // Disable timeout
+        } as any);
 
         return (result.content as any)[0];
     }

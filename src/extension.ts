@@ -1,14 +1,40 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { AnyRAGServer } from './anyragServer.js';
-import { MCPClient } from './mcpClient.js';
 import { LicenseManager } from './licenseManager.js';
-import { ChatParticipant } from './chatParticipant.js';
+import { MCPClient } from './mcpClient.js';
 
 let anyragServer: AnyRAGServer;
-let mcpClient: MCPClient;
 let licenseManager: LicenseManager;
-let chatParticipant: ChatParticipant;
+let mcpClient: MCPClient;
+
+async function registerMCPServer(pythonPath: string, launcherPath: string, licenseKey?: string) {
+    const config = vscode.workspace.getConfiguration();
+    const mcpServers = config.get<Record<string, any>>('mcp.servers') || {};
+    
+    const env: Record<string, string> = {};
+    if (licenseKey) {
+        env.ANYRAG_LICENSE_KEY = licenseKey;
+    }
+    
+    mcpServers.anyrag = {
+        command: pythonPath,
+        args: [launcherPath],
+        env
+    };
+    
+    await config.update('mcp.servers', mcpServers, vscode.ConfigurationTarget.Global);
+}
+
+async function unregisterMCPServer() {
+    const config = vscode.workspace.getConfiguration();
+    const mcpServers = config.get<Record<string, any>>('mcp.servers') || {};
+    
+    if (mcpServers.anyrag) {
+        delete mcpServers.anyrag;
+        await config.update('mcp.servers', mcpServers, vscode.ConfigurationTarget.Global);
+    }
+}
 
 export async function activate(context: vscode.ExtensionContext) {
     console.log('=== AnyRAG Pilot Extension Activating ===');
@@ -18,43 +44,38 @@ export async function activate(context: vscode.ExtensionContext) {
         licenseManager = new LicenseManager(context);
         console.log('License manager initialized');
 
-        // Initialize AnyRAG server
+        // Initialize AnyRAG server (setup only, don't start yet)
         anyragServer = new AnyRAGServer(context);
         const licenseKey = await licenseManager.getLicenseKey();
         
-        vscode.window.withProgress({
+        await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
             title: 'AnyRAG Pilot',
             cancellable: false
         }, async (progress) => {
-            progress.report({ message: 'Initializing AnyRAG server...' });
+            progress.report({ message: 'Setting up AnyRAG environment...' });
             await anyragServer.initialize(licenseKey);
         });
 
-        // Initialize MCP client
+        // Register MCP server in VS Code settings
         const storageUri = context.globalStorageUri;
         const pythonPath = process.platform === 'win32' 
             ? path.join(storageUri.fsPath, 'venv', 'Scripts', 'python.exe')
             : path.join(storageUri.fsPath, 'venv', 'bin', 'python3');
         const launcherPath = path.join(storageUri.fsPath, 'run_server.py');
         
+        await registerMCPServer(pythonPath, launcherPath, licenseKey);
+        
+        console.log('AnyRAG MCP server registered globally');
+
+        // Connect private MCP client for command handlers
         mcpClient = new MCPClient(pythonPath, launcherPath, storageUri.fsPath);
         await mcpClient.connect(licenseKey);
-        console.log('MCP client connected');
-
-        // Register chat participant
-        chatParticipant = new ChatParticipant(mcpClient);
-        const participant = vscode.chat.createChatParticipant(
-            'anyrag-pilot.assistant',
-            chatParticipant.handleRequest.bind(chatParticipant)
-        );
-        participant.iconPath = vscode.Uri.joinPath(context.extensionUri, 'icon.png');
-        context.subscriptions.push(participant);
-        console.log('Chat participant registered: @anyrag');
-
-        // Register commands
+        console.log('MCP client connected for extension commands');
+        
+        // Register VS Code commands for UI integration
         registerCommands(context);
-
+        
         console.log('AnyRAG Pilot extension activated successfully');
 
     } catch (error) {
@@ -218,10 +239,16 @@ function registerCommands(context: vscode.ExtensionContext) {
             const result = await licenseManager.activateLicense(licenseKey);
             if (result.success) {
                 vscode.window.showInformationMessage(result.message);
-                // Restart MCP server with new license
-                await anyragServer.restart(licenseKey);
+                // Reconnect MCP client with new license
                 await mcpClient.disconnect();
                 await mcpClient.connect(licenseKey);
+                // Update global registration
+                const storageUri = context.globalStorageUri;
+                const pythonPath = process.platform === 'win32' 
+                    ? path.join(storageUri.fsPath, 'venv', 'Scripts', 'python.exe')
+                    : path.join(storageUri.fsPath, 'venv', 'bin', 'python3');
+                const launcherPath = path.join(storageUri.fsPath, 'run_server.py');
+                await registerMCPServer(pythonPath, launcherPath, licenseKey);
             } else {
                 vscode.window.showErrorMessage(result.message);
             }
@@ -236,16 +263,9 @@ function registerCommands(context: vscode.ExtensionContext) {
             const features = info.features.length > 0 ? info.features.join(', ') : 'Basic features';
             
             vscode.window.showInformationMessage(
-                `AnyRAG Pilot License\\n\\nTier: ${tier}\\nActive: ${info.active}\\nFeatures: ${features}`,
+                `AnyRAG Pilot License\n\nTier: ${tier}\nActive: ${info.active}\nFeatures: ${features}`,
                 { modal: true }
             );
-        })
-    );
-
-    // Open Chat
-    context.subscriptions.push(
-        vscode.commands.registerCommand('anyrag-pilot.openChat', () => {
-            vscode.commands.executeCommand('workbench.action.chat.open', '@anyrag');
         })
     );
 }
@@ -253,11 +273,11 @@ function registerCommands(context: vscode.ExtensionContext) {
 export async function deactivate() {
     console.log('AnyRAG Pilot deactivating...');
     
+    // Disconnect MCP client
     if (mcpClient) {
         await mcpClient.disconnect();
     }
     
-    if (anyragServer) {
-        await anyragServer.stop();
-    }
+    // Unregister MCP server from settings
+    await unregisterMCPServer();
 }

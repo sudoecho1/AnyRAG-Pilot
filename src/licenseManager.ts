@@ -21,7 +21,7 @@ export class LicenseManager {
   private static readonly LICENSE_KEY = 'anyrag.license';
   private static readonly CACHE_KEY = 'anyrag.validation.cache';
   private static readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-  private static readonly API_ENDPOINT = 'https://anyrag-license-api.sudoecho.workers.dev/api/validate-license';
+  private static readonly API_ENDPOINT = 'https://ragpilot-license-api.ragpilot.workers.dev/api/validate-license';
   
   // RSA public key for verifying server responses (safe to be public)
   private static readonly SERVER_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
