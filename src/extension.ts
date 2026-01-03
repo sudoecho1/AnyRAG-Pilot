@@ -160,21 +160,19 @@ function registerCommands(context: vscode.ExtensionContext) {
                 return;
             }
 
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: 'Indexing folder',
-                cancellable: false
-            }, async (progress) => {
-                try {
-                    const result = await mcpClient.indexFolder({
-                        folder_path: folderPath,
-                        tags: ['folder']
-                    });
-                    vscode.window.showInformationMessage(`Indexed ${result.files_indexed} files`);
-                } catch (error) {
-                    vscode.window.showErrorMessage(`Indexing failed: ${error}`);
-                }
-            });
+            // Show initial message
+            vscode.window.showInformationMessage(`Indexing folder in background: ${path.basename(folderPath)}`);
+
+            // Run indexing without progress notification to avoid timeout issues
+            try {
+                const result = await mcpClient.indexFolder({
+                    folder_path: folderPath,
+                    tags: ['folder']
+                });
+                vscode.window.showInformationMessage(`✓ Indexed ${result.files_indexed} files from ${path.basename(folderPath)}`);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Indexing failed: ${error}`);
+            }
         })
     );
 

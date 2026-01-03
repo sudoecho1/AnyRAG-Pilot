@@ -119,6 +119,8 @@ export class MCPClient {
         const result = await this.client.callTool({
             name: 'index_folder',
             arguments: cleanParams
+        }, {
+            timeout: null
         });
 
         return (result.content as any)[0];
@@ -141,6 +143,8 @@ export class MCPClient {
         const result = await this.client.callTool({
             name: 'index_github_repo',
             arguments: cleanParams
+        }, {
+            timeout: null
         });
 
         return (result.content as any)[0];
@@ -161,6 +165,8 @@ export class MCPClient {
         const result = await this.client.callTool({
             name: 'index_chat',
             arguments: cleanParams
+        }, {
+            timeout: null
         });
 
         return (result.content as any)[0];
@@ -181,6 +187,8 @@ export class MCPClient {
         const result = await this.client.callTool({
             name: 'index_file',
             arguments: cleanParams
+        }, {
+            timeout: null
         });
 
         return (result.content as any)[0];
