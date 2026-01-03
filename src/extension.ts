@@ -204,7 +204,14 @@ function registerCommands(context: vscode.ExtensionContext) {
                         tags: ['file', fileName]
                     });
                     
-                    vscode.window.showInformationMessage(`Indexed ${fileName} (${result.chunks_indexed || 0} chunks)`);
+                    // Parse the MCP response
+                    let chunkCount = 0;
+                    if (result?.text) {
+                        const parsed = JSON.parse(result.text);
+                        chunkCount = parsed.total_chunks || 0;
+                    }
+                    
+                    vscode.window.showInformationMessage(`Indexed ${fileName} (${chunkCount} chunks)`);
                 } catch (error) {
                     vscode.window.showErrorMessage(`Indexing failed: ${error}`);
                 }
