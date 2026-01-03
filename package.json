@@ -1,0 +1,151 @@
+{
+  "name": "anyrag-pilot",
+  "displayName": "AnyRAG Pilot",
+  "description": "AI-powered semantic search with RAG for VS Code - Privacy-first, GPU-accelerated",
+  "version": "0.1.0",
+  "publisher": "sudoecho",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sudoecho1/AnyRAG-Pilot"
+  },
+  "bugs": {
+    "url": "https://github.com/sudoecho1/AnyRAG-Pilot/issues"
+  },
+  "homepage": "https://github.com/sudoecho1/AnyRAG-Pilot#readme",
+  "keywords": [
+    "ai",
+    "rag",
+    "semantic-search",
+    "vector-search",
+    "embeddings",
+    "copilot",
+    "chat",
+    "mcp"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Machine Learning"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "chatParticipants": [
+      {
+        "id": "anyrag-pilot.assistant",
+        "name": "anyrag",
+        "description": "AI assistant with RAG-powered context from your workspace and indexed repositories",
+        "isSticky": true
+      }
+    ],
+    "commands": [
+      {
+        "command": "anyrag-pilot.indexWorkspace",
+        "title": "AnyRAG Pilot: Index Workspace"
+      },
+      {
+        "command": "anyrag-pilot.indexFolder",
+        "title": "AnyRAG Pilot: Index Folder"
+      },
+      {
+        "command": "anyrag-pilot.indexGitHubRepo",
+        "title": "AnyRAG Pilot: Index GitHub Repository"
+      },
+      {
+        "command": "anyrag-pilot.showIndex",
+        "title": "AnyRAG Pilot: Show Indexed Sources"
+      },
+      {
+        "command": "anyrag-pilot.clearIndex",
+        "title": "AnyRAG Pilot: Clear Index"
+      },
+      {
+        "command": "anyrag-pilot.activateLicense",
+        "title": "AnyRAG Pilot: Activate Pro License"
+      },
+      {
+        "command": "anyrag-pilot.showLicenseInfo",
+        "title": "AnyRAG Pilot: Show License Info"
+      },
+      {
+        "command": "anyrag-pilot.openChat",
+        "title": "AnyRAG Pilot: Open Chat"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "anyrag-pilot.openChat",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r"
+      }
+    ],
+    "configuration": {
+      "title": "AnyRAG Pilot",
+      "properties": {
+        "anyragPilot.embeddingModel": {
+          "type": "string",
+          "enum": [
+            "all-MiniLM-L6-v2",
+            "all-mpnet-base-v2",
+            "all-MiniLM-L12-v2"
+          ],
+          "default": "all-MiniLM-L6-v2",
+          "description": "Embedding model for vector search (requires re-indexing if changed)",
+          "enumDescriptions": [
+            "Fast, 384d (Recommended for most users)",
+            "Best quality, 768d (Slower indexing, better accuracy)",
+            "Balanced, 384d"
+          ]
+        },
+        "anyragPilot.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to Python 3.13+ executable (leave empty for auto-detect)"
+        },
+        "anyragPilot.enableGPU": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use GPU acceleration if available (CUDA/MPS)"
+        }
+      }
+    },
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "anyrag-pilot.indexFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "anyrag@1"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && node esbuild.js --production",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "20.x",
+    "@types/vscode": "^1.90.0",
+    "@typescript-eslint/eslint-plugin": "^7.7.1",
+    "@typescript-eslint/parser": "^7.7.1",
+    "esbuild": "^0.20.2",
+    "eslint": "^8.57.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  }
+}
