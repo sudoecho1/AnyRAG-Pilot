@@ -18,6 +18,21 @@ export interface IndexGitHubRepoParams extends Record<string, unknown> {
     model_name?: string;
 }
 
+export interface IndexChatParams extends Record<string, unknown> {
+    content: string;
+    chat_name: string;
+    tags?: string[];
+    model_name?: string;
+    chunk_size?: number;
+}
+
+export interface IndexFileParams extends Record<string, unknown> {
+    file_path: string;
+    tags?: string[];
+    model_name?: string;
+    chunk_size?: number;
+}
+
 export interface SearchParams extends Record<string, unknown> {
     query: string;
     n_results?: number;
@@ -28,9 +43,9 @@ export interface IndexSource {
     source_id: string;
     source_type: string;
     source_path: string;
-    document_count: number;
+    document_count?: number;
     chunk_count: number;
-    indexed_at: string;
+    indexed_at?: string;
     tags?: string[];
     active: boolean;
 }
@@ -92,16 +107,19 @@ export class MCPClient {
             throw new Error('MCP client not connected');
         }
 
+        // Remove undefined values to avoid schema validation errors
+        const cleanParams: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(params)) {
+            if (value !== undefined) {
+                cleanParams[key] = value;
+            }
+        }
+
         // No timeout - let indexing complete however long it takes
         const result = await this.client.callTool({
             name: 'index_folder',
-            arguments: params as Record<string, unknown>,
-            _meta: {
-                progressToken: 'folder-index'
-            }
-        }, {
-            timeout: 0 // Disable timeout
-        } as any);
+            arguments: cleanParams
+        });
 
         return (result.content as any)[0];
     }
@@ -111,16 +129,59 @@ export class MCPClient {
             throw new Error('MCP client not connected');
         }
 
-        // No timeout - GitHub cloning and indexing can take a long time
+        // Remove undefined values to avoid schema validation errors
+        const cleanParams: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(params)) {
+            if (value !== undefined) {
+                cleanParams[key] = value;
+            }
+        }
+
+        // No timeout - let indexing complete however long it takes
         const result = await this.client.callTool({
             name: 'index_github_repo',
-            arguments: params as Record<string, unknown>,
-            _meta: {
-                progressToken: 'github-index'
+            arguments: cleanParams
+        });
+
+        return (result.content as any)[0];
+    }
+
+    async indexChat(params: IndexChatParams): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const cleanParams: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(params)) {
+            if (value !== undefined) {
+                cleanParams[key] = value;
             }
-        }, {
-            timeout: 0 // Disable timeout
-        } as any);
+        }
+
+        const result = await this.client.callTool({
+            name: 'index_chat',
+            arguments: cleanParams
+        });
+
+        return (result.content as any)[0];
+    }
+
+    async indexFile(params: IndexFileParams): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const cleanParams: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(params)) {
+            if (value !== undefined) {
+                cleanParams[key] = value;
+            }
+        }
+
+        const result = await this.client.callTool({
+            name: 'index_file',
+            arguments: cleanParams
+        });
 
         return (result.content as any)[0];
     }
@@ -198,6 +259,32 @@ export class MCPClient {
         const result = await this.client.callTool({
             name: 'deactivate_source',
             arguments: { source_id: sourceId } as Record<string, unknown>
+        });
+
+        return (result.content as any)[0];
+    }
+
+    async addTags(sourceId: string, tags: string[]): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'add_tags',
+            arguments: { source_id: sourceId, tags } as Record<string, unknown>
+        });
+
+        return (result.content as any)[0];
+    }
+
+    async removeTags(sourceId: string, tags: string[]): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'remove_tags',
+            arguments: { source_id: sourceId, tags } as Record<string, unknown>
         });
 
         return (result.content as any)[0];

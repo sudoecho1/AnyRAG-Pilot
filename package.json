@@ -74,6 +74,14 @@
         "title": "AnyRAG Pilot: Show License Info"
       },
       {
+        "command": "anyrag-pilot.deactivateLicense",
+        "title": "AnyRAG Pilot: Deactivate License"
+      },
+      {
+        "command": "anyrag-pilot.indexFile",
+        "title": "AnyRAG Pilot: Index File"
+      },
+      {
         "command": "anyrag-pilot.openChat",
         "title": "AnyRAG Pilot: Open Chat"
       }
@@ -116,10 +124,25 @@
       }
     },
     "menus": {
+      "commandPalette": [
+        {
+          "command": "anyrag-pilot.activateLicense",
+          "when": "!anyrag:pro:active"
+        },
+        {
+          "command": "anyrag-pilot.deactivateLicense",
+          "when": "anyrag:pro:active"
+        }
+      ],
       "explorer/context": [
         {
           "command": "anyrag-pilot.indexFolder",
           "when": "explorerResourceIsFolder",
+          "group": "anyrag@1"
+        },
+        {
+          "command": "anyrag-pilot.indexFile",
+          "when": "!explorerResourceIsFolder",
           "group": "anyrag@1"
         }
       ]

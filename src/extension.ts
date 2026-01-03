@@ -2,11 +2,12 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { AnyRAGServer } from './anyragServer.js';
 import { LicenseManager } from './licenseManager.js';
-import { MCPClient } from './mcpClient.js';
+import { MCPClient, IndexSource } from './mcpClient.js';
 
 let anyragServer: AnyRAGServer;
 let licenseManager: LicenseManager;
 let mcpClient: MCPClient;
+let statusBarItem: vscode.StatusBarItem;
 
 async function registerMCPServer(pythonPath: string, launcherPath: string, licenseKey?: string) {
     const config = vscode.workspace.getConfiguration();
@@ -34,6 +35,32 @@ async function unregisterMCPServer() {
         delete mcpServers.anyrag;
         await config.update('mcp.servers', mcpServers, vscode.ConfigurationTarget.Global);
     }
+}
+
+async function updateStatusBar() {
+    if (!licenseManager || !statusBarItem) {
+        return;
+    }
+    
+    const info = await licenseManager.getLicenseInfo();
+    const icon = info.tier === 'pro' ? '$(verified)' : '$(unlock)';
+    const label = info.tier === 'pro' ? 'Pro' : 'Community';
+    
+    statusBarItem.text = `${icon} AnyRAG ${label}`;
+    statusBarItem.tooltip = `AnyRAG Pilot ${info.tier.toUpperCase()}
+Click for details`;
+    
+    // Update context for conditional command visibility
+    await updateLicenseContext();
+}
+
+async function updateLicenseContext() {
+    if (!licenseManager) {
+        return;
+    }
+    
+    const hasPro = await licenseManager.hasProAccess();
+    await vscode.commands.executeCommand('setContext', 'anyrag:pro:active', hasPro);
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -75,6 +102,13 @@ export async function activate(context: vscode.ExtensionContext) {
         
         // Register VS Code commands for UI integration
         registerCommands(context);
+        
+        // Create status bar item
+        statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+        await updateStatusBar();
+        statusBarItem.command = 'anyrag-pilot.showLicenseInfo';
+        statusBarItem.show();
+        context.subscriptions.push(statusBarItem);
         
         console.log('AnyRAG Pilot extension activated successfully');
 
@@ -144,6 +178,40 @@ function registerCommands(context: vscode.ExtensionContext) {
         })
     );
 
+    // Index File
+    context.subscriptions.push(
+        vscode.commands.registerCommand('anyrag-pilot.indexFile', async (uri: vscode.Uri) => {
+            const filePath = uri?.fsPath || await vscode.window.showInputBox({
+                prompt: 'Enter file path to index'
+            });
+
+            if (!filePath) {
+                return;
+            }
+
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Indexing file',
+                cancellable: false
+            }, async (progress) => {
+                try {
+                    const fileName = path.basename(filePath);
+                    progress.report({ message: 'Indexing file...' });
+                    
+                    // Use the new index_file tool
+                    const result = await mcpClient.indexFile({
+                        file_path: filePath,
+                        tags: ['file', fileName]
+                    });
+                    
+                    vscode.window.showInformationMessage(`Indexed ${fileName} (${result.chunks_indexed || 0} chunks)`);
+                } catch (error) {
+                    vscode.window.showErrorMessage(`Indexing failed: ${error}`);
+                }
+            });
+        })
+    );
+
     // Index GitHub Repo
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.indexGitHubRepo', async () => {
@@ -187,21 +255,133 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return;
                 }
 
-                const items = indexData.sources.map(source => ({
-                    label: `${source.source_type}: ${source.source_path}`,
-                    description: `${source.document_count} docs, ${source.chunk_count} chunks`,
-                    detail: `Tags: ${source.tags?.join(', ') || 'none'} | Active: ${source.active}`,
-                    source
-                }));
-
-                vscode.window.showQuickPick(items, {
-                    placeHolder: 'Indexed sources'
+                const items = indexData.sources.map((source: IndexSource) => {
+                    // Choose icon based on source type
+                    let typeIcon = '$(folder)';
+                    if (source.source_type === 'github') {
+                        typeIcon = '$(repo)';
+                    } else if (source.tags?.includes('file')) {
+                        typeIcon = '$(file)';
+                    } else if (source.tags?.includes('workspace')) {
+                        typeIcon = '$(root-folder)';
+                    }
+                    
+                    const activeStatus = source.active ? '$(check) Active' : '';
+                    
+                    return {
+                        label: `${typeIcon} ${source.source_path}`,
+                        description: activeStatus,
+                        detail: `${(source.chunk_count || 0).toLocaleString()} chunks | Tags: ${source.tags?.join(', ') || 'none'}`,
+                        source
+                    };
                 });
+
+                const selected = await vscode.window.showQuickPick(items, {
+                    placeHolder: 'Select a source to manage'
+                });
+
+                if (!selected) {
+                    return;
+                }
+
+                // Show action menu for selected source
+                await showSourceActions(selected.source);
             } catch (error) {
                 vscode.window.showErrorMessage(`Failed to show index: ${error}`);
             }
         })
     );
+
+    async function showSourceActions(source: IndexSource) {
+        const actions = [
+            { label: '$(tag) Add Tags', description: 'Add new tags to this source', action: 'addTags' },
+            { label: '$(close) Remove Tags', description: 'Remove existing tags', action: 'removeTags' },
+            source.active 
+                ? { label: '$(debug-pause) Deactivate Source', description: 'Exclude from searches', action: 'deactivate' }
+                : { label: '$(play) Activate Source', description: 'Include in searches', action: 'activate' },
+            { label: '$(trash) Remove Source', description: 'Delete permanently', action: 'remove' }
+        ];
+
+        const selected = await vscode.window.showQuickPick(actions, {
+            placeHolder: `Manage: ${source.source_path}`,
+            matchOnDescription: true
+        });
+
+        if (!selected) {
+            return;
+        }
+
+        switch (selected.action) {
+            case 'addTags':
+                await addTagsToSource(source);
+                break;
+            case 'removeTags':
+                await removeTagsFromSource(source);
+                break;
+            case 'activate':
+                await mcpClient.activateSource(source.source_id);
+                vscode.window.showInformationMessage(`Activated: ${source.source_path}`);
+                break;
+            case 'deactivate':
+                await mcpClient.deactivateSource(source.source_id);
+                vscode.window.showInformationMessage(`Deactivated: ${source.source_path}`);
+                break;
+            case 'remove':
+                const confirm = await vscode.window.showWarningMessage(
+                    `Remove ${source.source_path}?`,
+                    { modal: true },
+                    'Remove'
+                );
+                if (confirm === 'Remove') {
+                    await mcpClient.removeSource(source.source_id);
+                    vscode.window.showInformationMessage(`Removed: ${source.source_path}`);
+                }
+                break;
+        }
+    }
+
+    async function addTagsToSource(source: IndexSource) {
+        const input = await vscode.window.showInputBox({
+            prompt: 'Enter tags to add (comma-separated)',
+            placeHolder: 'important, review, backend',
+            value: ''
+        });
+
+        if (!input) {
+            return;
+        }
+
+        const tags = input.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        if (tags.length === 0) {
+            return;
+        }
+
+        await mcpClient.addTags(source.source_id, tags);
+        vscode.window.showInformationMessage(`Added tags: ${tags.join(', ')}`);
+    }
+
+    async function removeTagsFromSource(source: IndexSource) {
+        if (!source.tags || source.tags.length === 0) {
+            vscode.window.showInformationMessage('No tags to remove');
+            return;
+        }
+
+        const selected = await vscode.window.showQuickPick(
+            source.tags.map(tag => ({ label: tag, picked: false })),
+            {
+                placeHolder: 'Select tags to remove',
+                canPickMany: true
+            }
+        );
+
+        if (!selected || selected.length === 0) {
+            return;
+        }
+
+        const tags = selected.map(s => s.label);
+        await mcpClient.removeTags(source.source_id, tags);
+        vscode.window.showInformationMessage(`Removed tags: ${tags.join(', ')}`);
+    }
 
     // Clear Index
     context.subscriptions.push(
@@ -239,6 +419,8 @@ function registerCommands(context: vscode.ExtensionContext) {
             const result = await licenseManager.activateLicense(licenseKey);
             if (result.success) {
                 vscode.window.showInformationMessage(result.message);
+                // Update status bar
+                await updateStatusBar();
                 // Reconnect MCP client with new license
                 await mcpClient.disconnect();
                 await mcpClient.connect(licenseKey);
@@ -260,15 +442,55 @@ function registerCommands(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('anyrag-pilot.showLicenseInfo', async () => {
             const info = await licenseManager.getLicenseInfo();
             const tier = info.tier.toUpperCase();
-            const features = info.features.length > 0 ? info.features.join(', ') : 'Basic features';
+            const featureList = info.features.length > 0 
+                ? info.features.map(f => `  • ${f}`).join('\n')
+                : '  • Basic indexing and search';
             
-            vscode.window.showInformationMessage(
-                `AnyRAG Pilot License\n\nTier: ${tier}\nActive: ${info.active}\nFeatures: ${features}`,
-                { modal: true }
-            );
+            const message = `AnyRAG Pilot License\n\nTier: ${tier}\nActive: ${info.active}\n\nFeatures:\n${featureList}`;
+            
+            if (info.tier === 'community') {
+                const action = await vscode.window.showInformationMessage(
+                    message,
+                    { modal: true },
+                    'Upgrade to Pro'
+                );
+                if (action === 'Upgrade to Pro') {
+                    vscode.env.openExternal(vscode.Uri.parse('https://anyrag.dev/pricing'));
+                }
+            } else {
+                vscode.window.showInformationMessage(message, { modal: true });
+            }
         })
     );
-}
+    // Deactivate License
+    context.subscriptions.push(
+        vscode.commands.registerCommand('anyrag-pilot.deactivateLicense', async () => {
+            const confirm = await vscode.window.showWarningMessage(
+                'Are you sure you want to deactivate your Pro license on this machine?',
+                { modal: true },
+                'Deactivate'
+            );
+
+            if (confirm === 'Deactivate') {
+                try {
+                    await licenseManager.deactivateLicense();
+                    await updateStatusBar();
+                    vscode.window.showInformationMessage('License deactivated. Switched to Community Edition.');
+                    // Optionally reload window
+                    const reload = await vscode.window.showInformationMessage(
+                        'Reload window to apply changes?',
+                        'Reload',
+                        'Later'
+                    );
+                    if (reload === 'Reload') {
+                        vscode.commands.executeCommand('workbench.action.reloadWindow');
+                    }
+                } catch (error) {
+                    vscode.window.showErrorMessage(`Failed to deactivate license: ${error}`);
+                }
+            }
+        })
+    );}
 
 export async function deactivate() {
     console.log('AnyRAG Pilot deactivating...');
