@@ -59,8 +59,13 @@ export interface SearchResult {
 export class MCPClient {
     private client: Client | null = null;
     private transport: StdioClientTransport | null = null;
+    private progressCallback: ((current: number, total: number) => void) | null = null;
 
     constructor(private pythonPath: string, private launcherPath: string, private storageDir: string) {}
+
+    setProgressCallback(callback: (current: number, total: number) => void) {
+        this.progressCallback = callback;
+    }
 
     async connect(licenseKey?: string): Promise<void> {
         const env: Record<string, string> = {};
@@ -89,6 +94,25 @@ export class MCPClient {
         });
 
         await this.client.connect(this.transport);
+        
+        // Access stderr after connection
+        const transportAny = this.transport as any;
+        if (transportAny._process?.stderr) {
+            console.log('Setting up stderr listener for progress updates');
+            transportAny._process.stderr.on('data', (data: Buffer) => {
+                const output = data.toString();
+                // Parse: "Processing file 816/821"
+                const match = output.match(/Processing file (\d+)\/(\d+)/);
+                if (match && this.progressCallback) {
+                    const current = parseInt(match[1], 10);
+                    const total = parseInt(match[2], 10);
+                    console.log(`Progress update: ${current}/${total}`);
+                    this.progressCallback(current, total);
+                }
+            });
+        } else {
+            console.log('stderr not available on transport');
+        }
     }
 
     async disconnect(): Promise<void> {
@@ -119,8 +143,6 @@ export class MCPClient {
         const result = await this.client.callTool({
             name: 'index_folder',
             arguments: cleanParams
-        }, {
-            timeout: null
         });
 
         return (result.content as any)[0];
@@ -143,8 +165,6 @@ export class MCPClient {
         const result = await this.client.callTool({
             name: 'index_github_repo',
             arguments: cleanParams
-        }, {
-            timeout: null
         });
 
         return (result.content as any)[0];
@@ -165,8 +185,7 @@ export class MCPClient {
         const result = await this.client.callTool({
             name: 'index_chat',
             arguments: cleanParams
-        }, {
-            timeout: null
+
         });
 
         return (result.content as any)[0];
@@ -187,8 +206,7 @@ export class MCPClient {
         const result = await this.client.callTool({
             name: 'index_file',
             arguments: cleanParams
-        }, {
-            timeout: null
+
         });
 
         return (result.content as any)[0];

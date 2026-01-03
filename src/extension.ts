@@ -129,23 +129,28 @@ function registerCommands(context: vscode.ExtensionContext) {
             }
 
             const folderPath = workspaceFolders[0].uri.fsPath;
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: 'Indexing workspace',
-                cancellable: false
-            }, async (progress) => {
-                progress.report({ message: 'This may take a few minutes...' });
-                
-                try {
-                    const result = await mcpClient.indexFolder({
+            const folderName = path.basename(folderPath);
+            
+            try {
+                const result = await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'Indexing workspace',
+                    cancellable: false
+                }, async (progress) => {
+                    progress.report({ message: 'This may take a few minutes...', increment: -1 });
+                    return await mcpClient.indexFolder({
                         folder_path: folderPath,
                         tags: ['workspace']
                     });
-                    vscode.window.showInformationMessage(`Indexed ${result.files_indexed} files, ${result.chunks_created} chunks`);
-                } catch (error) {
+                });
+                
+                vscode.window.showInformationMessage(`Indexed ${result.files_indexed} files, ${result.chunks_created} chunks`);
+            } catch (error: any) {
+                // MCP SDK timeout - indexing continues silently in background
+                if (!error.message?.includes('timeout') && !error.message?.includes('timed out')) {
                     vscode.window.showErrorMessage(`Indexing failed: ${error}`);
                 }
-            });
+            }
         })
     );
 
@@ -160,18 +165,28 @@ function registerCommands(context: vscode.ExtensionContext) {
                 return;
             }
 
-            // Show initial message
-            vscode.window.showInformationMessage(`Indexing folder in background: ${path.basename(folderPath)}`);
+            const folderName = path.basename(folderPath);
 
-            // Run indexing without progress notification to avoid timeout issues
+            // Show progress notification
             try {
-                const result = await mcpClient.indexFolder({
-                    folder_path: folderPath,
-                    tags: ['folder']
+                const result = await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Indexing ${folderName}`,
+                    cancellable: false
+                }, async (progress) => {
+                    progress.report({ message: 'Processing files...', increment: -1 });
+                    return await mcpClient.indexFolder({
+                        folder_path: folderPath,
+                        tags: ['folder']
+                    });
                 });
-                vscode.window.showInformationMessage(`✓ Indexed ${result.files_indexed} files from ${path.basename(folderPath)}`);
-            } catch (error) {
-                vscode.window.showErrorMessage(`Indexing failed: ${error}`);
+                
+                vscode.window.showInformationMessage(`✓ Indexed ${result.files_indexed} files from ${folderName}`);
+            } catch (error: any) {
+                // MCP SDK timeout - indexing continues silently in background
+                if (!error.message?.includes('timeout') && !error.message?.includes('timed out')) {
+                    vscode.window.showErrorMessage(`Indexing failed: ${error}`);
+                }
             }
         })
     );
@@ -187,33 +202,32 @@ function registerCommands(context: vscode.ExtensionContext) {
                 return;
             }
 
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: 'Indexing file',
-                cancellable: false
-            }, async (progress) => {
-                try {
-                    const fileName = path.basename(filePath);
-                    progress.report({ message: 'Indexing file...' });
-                    
-                    // Use the new index_file tool
-                    const result = await mcpClient.indexFile({
+            const fileName = path.basename(filePath);
+            
+            try {
+                const result = await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Indexing ${fileName}`,
+                    cancellable: false
+                }, async (progress) => {
+                    progress.report({ message: 'Processing file...', increment: -1 });
+                    return await mcpClient.indexFile({
                         file_path: filePath,
                         tags: ['file', fileName]
                     });
-                    
-                    // Parse the MCP response
-                    let chunkCount = 0;
-                    if (result?.text) {
-                        const parsed = JSON.parse(result.text);
-                        chunkCount = parsed.total_chunks || 0;
-                    }
-                    
-                    vscode.window.showInformationMessage(`Indexed ${fileName} (${chunkCount} chunks)`);
-                } catch (error) {
-                    vscode.window.showErrorMessage(`Indexing failed: ${error}`);
+                });
+                
+                // Parse the MCP response
+                let chunkCount = 0;
+                if (result?.text) {
+                    const parsed = JSON.parse(result.text);
+                    chunkCount = parsed.total_chunks || 0;
                 }
-            });
+                
+                vscode.window.showInformationMessage(`✓ Indexed ${fileName} (${chunkCount} chunks)`);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Indexing failed: ${error}`);
+            }
         })
     );
 
@@ -229,23 +243,26 @@ function registerCommands(context: vscode.ExtensionContext) {
                 return;
             }
 
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: `Indexing ${repoUrl}`,
-                cancellable: false
-            }, async (progress) => {
-                progress.report({ message: 'Cloning and indexing repository...' });
-                
-                try {
-                    const result = await mcpClient.indexGitHubRepo({
+            try {
+                const result = await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Indexing ${repoUrl}`,
+                    cancellable: false
+                }, async (progress) => {
+                    progress.report({ message: 'Cloning and indexing repository...', increment: -1 });
+                    return await mcpClient.indexGitHubRepo({
                         repo_url: repoUrl,
                         tags: ['github']
                     });
-                    vscode.window.showInformationMessage(`Indexed ${result.files_indexed} files from ${repoUrl}`);
-                } catch (error) {
+                });
+                
+                vscode.window.showInformationMessage(`✓ Indexed ${result.files_indexed} files from ${repoUrl}`);
+            } catch (error: any) {
+                // MCP SDK timeout - indexing continues silently in background
+                if (!error.message?.includes('timeout') && !error.message?.includes('timed out')) {
                     vscode.window.showErrorMessage(`GitHub indexing failed: ${error}`);
                 }
-            });
+            }
         })
     );
 
@@ -324,11 +341,25 @@ function registerCommands(context: vscode.ExtensionContext) {
                 await removeTagsFromSource(source);
                 break;
             case 'activate':
-                await mcpClient.activateSource(source.source_id);
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'Activating source',
+                    cancellable: false
+                }, async (progress) => {
+                    progress.report({ message: 'Updating index...', increment: -1 });
+                    await mcpClient.activateSource(source.source_id);
+                });
                 vscode.window.showInformationMessage(`Activated: ${source.source_path}`);
                 break;
             case 'deactivate':
-                await mcpClient.deactivateSource(source.source_id);
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'Deactivating source',
+                    cancellable: false
+                }, async (progress) => {
+                    progress.report({ message: 'Updating index...', increment: -1 });
+                    await mcpClient.deactivateSource(source.source_id);
+                });
                 vscode.window.showInformationMessage(`Deactivated: ${source.source_path}`);
                 break;
             case 'remove':
@@ -338,7 +369,14 @@ function registerCommands(context: vscode.ExtensionContext) {
                     'Remove'
                 );
                 if (confirm === 'Remove') {
-                    await mcpClient.removeSource(source.source_id);
+                    await vscode.window.withProgress({
+                        location: vscode.ProgressLocation.Notification,
+                        title: `Removing ${path.basename(source.source_path)}`,
+                        cancellable: false
+                    }, async (progress) => {
+                        progress.report({ message: 'Removing source from index...', increment: -1 });
+                        await mcpClient.removeSource(source.source_id);
+                    });
                     vscode.window.showInformationMessage(`Removed: ${source.source_path}`);
                 }
                 break;
@@ -361,7 +399,14 @@ function registerCommands(context: vscode.ExtensionContext) {
             return;
         }
 
-        await mcpClient.addTags(source.source_id, tags);
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: 'Adding tags',
+            cancellable: false
+        }, async (progress) => {
+            progress.report({ message: 'Updating source tags...', increment: -1 });
+            await mcpClient.addTags(source.source_id, tags);
+        });
         vscode.window.showInformationMessage(`Added tags: ${tags.join(', ')}`);
     }
 
@@ -384,7 +429,14 @@ function registerCommands(context: vscode.ExtensionContext) {
         }
 
         const tags = selected.map(s => s.label);
-        await mcpClient.removeTags(source.source_id, tags);
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: 'Removing tags',
+            cancellable: false
+        }, async (progress) => {
+            progress.report({ message: 'Updating source tags...', increment: -1 });
+            await mcpClient.removeTags(source.source_id, tags);
+        });
         vscode.window.showInformationMessage(`Removed tags: ${tags.join(', ')}`);
     }
 
@@ -398,12 +450,19 @@ function registerCommands(context: vscode.ExtensionContext) {
             );
 
             if (confirm === 'Clear Index') {
-                try {
-                    await mcpClient.clearIndex();
-                    vscode.window.showInformationMessage('Index cleared successfully');
-                } catch (error) {
-                    vscode.window.showErrorMessage(`Failed to clear index: ${error}`);
-                }
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'Clearing index',
+                    cancellable: false
+                }, async () => {
+                    try {
+                        await mcpClient.clearIndex();
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Failed to clear index: ${error}`);
+                        throw error;
+                    }
+                });
+                vscode.window.showInformationMessage('Index cleared successfully');
             }
         })
     );
