@@ -93,10 +93,12 @@ export class MCPClient {
             env.ANYRAG_LICENSE_KEY = licenseKey;
         }
 
+        const os = require('os');
         this.transport = new StdioClientTransport({
             command: this.pythonPath,
             args: [this.launcherPath],
-            env
+            env,
+            cwd: this.storageDir
         });
 
         this.client = new Client({
