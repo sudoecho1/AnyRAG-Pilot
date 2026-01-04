@@ -49,7 +49,32 @@ AnyRAG Pilot brings enterprise-grade Retrieval-Augmented Generation (RAG) to you
 ### Pro Tier Settings
 
 - `anyragPilot.embeddingModel` - Select "custom" to use any HuggingFace model
-- `anyragPilot.customEmbeddingModel` - Enter model name (e.g., `sentence-transformers/multi-qa-mpnet-base-dot-v1`)
+- `anyragPilot.customEmbeddingModel` - Enter model name (e.g., `BAAI/bge-large-en-v1.5`)
+
+### 🔍 Finding Compatible Embedding Models (Pro)
+
+**✅ Compatible models must have:**
+- `sentence-transformers` library tag on HuggingFace
+- Model type: "Sentence Transformers"
+- Purpose: Text/sentence embeddings (not generation or classification)
+
+**Quick way to find models:**
+```
+https://huggingface.co/models?library=sentence-transformers&sort=downloads
+```
+
+**Recommended custom models:**
+- `BAAI/bge-large-en-v1.5` - Excellent for code (1024d)
+- `thenlper/gte-large` - High quality, multilingual (1024d)
+- `intfloat/e5-large-v2` - Strong general purpose (1024d)
+- `sentence-transformers/multi-qa-mpnet-base-dot-v1` - Great for Q&A (768d)
+
+**⚠️ Incompatible models (will error):**
+- GPT, LLaMA, Mistral (text generation)
+- BERT classification models
+- Any model without sentence-transformers support
+
+AnyRAG validates models automatically and provides clear error messages for incompatible models.
 
 ## 📝 License
 
