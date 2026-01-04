@@ -126,14 +126,20 @@ export class ChatParticipant {
                 stream.markdown(fragment);
             }
 
-            // Add source references (show top 3 only)
-            stream.markdown('\n\n---\n\n### 📚 Sources\n\n');
+            // Add source references (show top 3 only, sorted by highest similarity)
+            stream.markdown('\n\n---\n\n### 📚 Top Sources\n\n');
+            const sortedSources = Array.from(resultsBySource.entries()).sort((a, b) => {
+                const maxSimA = Math.max(...a[1].map(r => parseFloat(r.similarity)));
+                const maxSimB = Math.max(...b[1].map(r => parseFloat(r.similarity)));
+                return maxSimB - maxSimA; // Descending order
+            });
+            
             let sourceCount = 0;
-            for (const [source, results] of resultsBySource.entries()) {
+            for (const [source, results] of sortedSources) {
                 if (sourceCount >= 3) break;
                 const fileName = source.split('/').pop() || source;
-                const avgSimilarity = (results.reduce((sum: number, r: any) => sum + parseFloat(r.similarity), 0) / results.length).toFixed(1);
-                stream.markdown(`- **${fileName}** (${results.length} chunk${results.length > 1 ? 's' : ''}, ${avgSimilarity}% relevant)\n`);
+                const maxSimilarity = Math.max(...results.map(r => parseFloat(r.similarity))).toFixed(1);
+                stream.markdown(`- **${fileName}** (${results.length} chunk${results.length > 1 ? 's' : ''}, ${maxSimilarity}% relevant)\n`);
                 sourceCount++;
             }
 
@@ -157,8 +163,15 @@ export class ChatParticipant {
     }
 
     private displaySearchResults(searchResult: SearchResult, resultsBySource: Map<string, Array<{item: SearchResultItem, similarity: string}>>, stream: vscode.ChatResponseStream) {
+        // Sort sources by highest similarity score (most relevant first)
+        const sortedSources = Array.from(resultsBySource.entries()).sort((a, b) => {
+            const maxSimA = Math.max(...a[1].map(r => parseFloat(r.similarity)));
+            const maxSimB = Math.max(...b[1].map(r => parseFloat(r.similarity)));
+            return maxSimB - maxSimA; // Descending order
+        });
+
         // Stream results grouped by source
-        for (const [source, results] of resultsBySource.entries()) {
+        for (const [source, results] of sortedSources) {
             const fileName = source.split('/').pop() || source;
             const totalSimilarity = results.reduce((sum, r) => sum + parseFloat(r.similarity), 0);
             const avgSimilarity = (totalSimilarity / results.length).toFixed(1);
