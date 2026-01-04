@@ -630,6 +630,17 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Create Index
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.createIndex', async () => {
+            // Check existing indices first
+            let existingIndices: string[] = [];
+            try {
+                const indicesResult = await mcpClient.listIndices();
+                if (indicesResult.indices) {
+                    existingIndices = indicesResult.indices.map((idx: any) => idx.name);
+                }
+            } catch (error) {
+                console.error('[createIndex] Failed to list existing indices:', error);
+            }
+
             const indexName = await vscode.window.showInputBox({
                 prompt: 'Enter name for new index',
                 placeHolder: 'e.g., code-bge, docs-mpnet',
@@ -642,6 +653,9 @@ function registerCommands(context: vscode.ExtensionContext) {
                     }
                     if (!/^[a-z0-9-_]+$/.test(value)) {
                         return 'Index name can only contain lowercase letters, numbers, hyphens, and underscores';
+                    }
+                    if (existingIndices.includes(value)) {
+                        return `Index "${value}" already exists`;
                     }
                     return null;
                 }
@@ -705,6 +719,7 @@ function registerCommands(context: vscode.ExtensionContext) {
             
             try {
                 const result = await mcpClient.createIndex(indexName, modelName);
+                console.log('[createIndex] Result:', JSON.stringify(result, null, 2));
                 
                 if (result.error) {
                     vscode.window.showErrorMessage(`Failed to create index: ${result.error}`);
@@ -715,6 +730,7 @@ function registerCommands(context: vscode.ExtensionContext) {
                     updateIndexStatusBar();
                 }
             } catch (error: any) {
+                console.error('[createIndex] Error:', error);
                 vscode.window.showErrorMessage(`Failed to create index: ${error.message}`);
             }
         })
@@ -743,10 +759,10 @@ function registerCommands(context: vscode.ExtensionContext) {
                 }
                 
                 const items: IndexItem[] = indices.map((idx: any) => ({
-                    label: idx.index_name,
+                    label: idx.name,
                     description: `${idx.model_name} (${idx.document_count} docs)`,
-                    detail: `Created: ${new Date(idx.created_at).toLocaleString()}`,
-                    indexName: idx.index_name
+                    detail: `Created: ${new Date(idx.created_at * 1000).toLocaleString()}`,
+                    indexName: idx.name
                 }));
                 
                 const selected = await vscode.window.showQuickPick(items, {
@@ -769,6 +785,7 @@ function registerCommands(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('anyrag-pilot.listIndices', async () => {
             try {
                 const result = await mcpClient.listIndices();
+                console.log('[listIndices] Result:', JSON.stringify(result, null, 2));
                 
                 if (result.error) {
                     vscode.window.showErrorMessage(`Failed to list indices: ${result.error}`);
@@ -782,11 +799,91 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return;
                 }
                 
-                const message = indices.map((idx: any) => 
-                    `• ${idx.index_name}: ${idx.model_name} (${idx.document_count} docs, created ${new Date(idx.created_at).toLocaleDateString()})`
-                ).join('\n');
+                interface IndexItem extends vscode.QuickPickItem {
+                    indexName: string;
+                }
                 
-                vscode.window.showInformationMessage(`Indices:\n${message}`, { modal: true });
+                const items: IndexItem[] = indices.map((idx: any) => ({
+                    label: idx.name === activeIndex ? `$(check) ${idx.name}` : idx.name,
+                    description: `${idx.model_name} • ${idx.document_count} docs`,
+                    detail: `Created: ${new Date(idx.created_at * 1000).toLocaleString()}`,
+                    indexName: idx.name
+                }));
+                
+                const selected = await vscode.window.showQuickPick(items, {
+                    placeHolder: `Select an index (current: ${activeIndex})`,
+                    title: 'AnyRAG Indices'
+                });
+                
+                if (!selected) {
+                    return;
+                }
+                
+                // Show action menu
+                const action = await vscode.window.showQuickPick([
+                    { label: '$(arrow-swap) Switch to this index', value: 'switch' },
+                    { label: '$(edit) Rename this index', value: 'rename' }
+                ], {
+                    placeHolder: `What would you like to do with "${selected.indexName}"?`
+                });
+                
+                if (!action) {
+                    return;
+                }
+                
+                if (action.value === 'switch') {
+                    if (selected.indexName !== activeIndex) {
+                        activeIndex = selected.indexName;
+                        updateIndexStatusBar();
+                        vscode.window.showInformationMessage(`Switched to index "${activeIndex}"`);
+                    }
+                } else if (action.value === 'rename') {
+                    // Get existing indices for validation
+                    const existingNames = indices.map((idx: any) => idx.name);
+                    
+                    const newName = await vscode.window.showInputBox({
+                        prompt: `Rename index "${selected.indexName}"`,
+                        value: selected.indexName,
+                        validateInput: (value) => {
+                            if (!value || value.trim() === '') {
+                                return 'Index name cannot be empty';
+                            }
+                            if (value === 'default') {
+                                return 'Cannot rename to "default"';
+                            }
+                            if (selected.indexName === 'default') {
+                                return 'Cannot rename the "default" index';
+                            }
+                            if (!/^[a-z0-9-_]+$/.test(value)) {
+                                return 'Index name can only contain lowercase letters, numbers, hyphens, and underscores';
+                            }
+                            if (existingNames.includes(value) && value !== selected.indexName) {
+                                return `Index "${value}" already exists`;
+                            }
+                            return null;
+                        }
+                    });
+                    
+                    if (newName && newName !== selected.indexName) {
+                        try {
+                            const renameResult = await mcpClient.renameIndex(selected.indexName, newName);
+                            
+                            if (renameResult.error) {
+                                vscode.window.showErrorMessage(`Failed to rename index: ${renameResult.error}`);
+                            } else {
+                                vscode.window.showInformationMessage(`✓ Renamed index "${selected.indexName}" to "${newName}"`);
+                                
+                                // If we renamed the active index, update it
+                                if (activeIndex === selected.indexName) {
+                                    activeIndex = newName;
+                                    updateIndexStatusBar();
+                                }
+                            }
+                        } catch (error: any) {
+                            vscode.window.showErrorMessage(`Failed to rename index: ${error.message}`);
+                        }
+                    }
+                }
             } catch (error: any) {
                 vscode.window.showErrorMessage(`Failed to list indices: ${error.message}`);
             }
@@ -804,7 +901,7 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return;
                 }
                 
-                const indices = (indicesResult.indices || []).filter((idx: any) => idx.index_name !== 'default');
+                const indices = (indicesResult.indices || []).filter((idx: any) => idx.name !== 'default');
                 
                 if (indices.length === 0) {
                     vscode.window.showInformationMessage('No indices to delete (cannot delete "default" index).');
@@ -816,9 +913,9 @@ function registerCommands(context: vscode.ExtensionContext) {
                 }
                 
                 const items: IndexItem[] = indices.map((idx: any) => ({
-                    label: idx.index_name,
+                    label: idx.name,
                     description: `${idx.model_name} (${idx.document_count} docs)`,
-                    indexName: idx.index_name
+                    indexName: idx.name
                 }));
                 
                 const selected = await vscode.window.showQuickPick(items, {

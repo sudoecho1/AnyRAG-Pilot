@@ -345,7 +345,11 @@ export class MCPClient {
             arguments: cleanParams
         });
 
-        return (result.content as any)[0];
+        const content = (result.content as any)[0];
+        if (content.type === 'text') {
+            return JSON.parse(content.text);
+        }
+        return content;
     }
 
     async listIndices(): Promise<any> {
@@ -358,7 +362,11 @@ export class MCPClient {
             arguments: {} as Record<string, unknown>
         });
 
-        return (result.content as any)[0];
+        const content = (result.content as any)[0];
+        if (content.type === 'text') {
+            return JSON.parse(content.text);
+        }
+        return content;
     }
 
     async deleteIndex(indexName: string): Promise<any> {
@@ -371,6 +379,27 @@ export class MCPClient {
             arguments: { index_name: indexName } as Record<string, unknown>
         });
 
-        return (result.content as any)[0];
+        const content = (result.content as any)[0];
+        if (content.type === 'text') {
+            return JSON.parse(content.text);
+        }
+        return content;
+    }
+
+    async renameIndex(oldName: string, newName: string): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'rename_index',
+            arguments: { old_name: oldName, new_name: newName } as Record<string, unknown>
+        });
+
+        const content = (result.content as any)[0];
+        if (content.type === 'text') {
+            return JSON.parse(content.text);
+        }
+        return content;
     }
 }
