@@ -17,6 +17,7 @@ AnyRAG Pilot brings enterprise-grade Retrieval-Augmented Generation (RAG) to you
 
 - ✨ Unlimited indexed documents (Free: 100 docs)
 - 📦 Unlimited indexed sources (Free: 3 sources)  
+- 🎨 **Custom embedding models** - Use any HuggingFace model (Free: 3 presets)
 - 💬 Conversation indexing for chat history search
 - 🎯 Priority support
 
@@ -35,9 +36,20 @@ AnyRAG Pilot brings enterprise-grade Retrieval-Augmented Generation (RAG) to you
 
 ## 🔧 Configuration
 
-- `anyragPilot.embeddingModel` - Choose embedding model (default: all-MiniLM-L6-v2)
+### Community Tier Settings
+
+- `anyragPilot.embeddingModel` - Choose from 3 preset models:
+  - `all-MiniLM-L6-v2` (default) - Fast, 384d
+  - `all-MiniLM-L12-v2` - Balanced, 384d
+  - `all-mpnet-base-v2` - Best quality, 768d
 - `anyragPilot.pythonPath` - Manual Python path (auto-detected by default)
 - `anyragPilot.enableGPU` - Enable GPU acceleration (default: true)
+- `anyragPilot.searchResults` - Number of search results (default: 20)
+
+### Pro Tier Settings
+
+- `anyragPilot.embeddingModel` - Select "custom" to use any HuggingFace model
+- `anyragPilot.customEmbeddingModel` - Enter model name (e.g., `sentence-transformers/multi-qa-mpnet-base-dot-v1`)
 
 ## 📝 License
 
