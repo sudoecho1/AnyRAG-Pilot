@@ -238,14 +238,14 @@ export class MCPClient {
         return JSON.parse((result.content as any)[0].text);
     }
 
-    async showIndex(activeOnly: boolean = false, tags?: string[]): Promise<{ sources: IndexSource[] }> {
+    async showIndex(activeOnly: boolean = false, tags?: string[], indexName: string = 'default'): Promise<{ sources: IndexSource[] }> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'show_index',
-            arguments: { active_only: activeOnly, tags } as Record<string, unknown>
+            arguments: { active_only: activeOnly, tags, index_name: indexName } as Record<string, unknown>
         });
 
         return JSON.parse((result.content as any)[0].text);
@@ -277,14 +277,14 @@ export class MCPClient {
         return (result.content as any)[0];
     }
 
-    async activateSource(sourceId: string): Promise<any> {
+    async activateSource(sourceId: string, indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'activate_source',
-            arguments: { source_id: sourceId } as Record<string, unknown>
+            arguments: { source_id: sourceId, index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
