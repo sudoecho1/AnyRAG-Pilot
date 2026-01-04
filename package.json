@@ -107,16 +107,24 @@
           "type": "string",
           "enum": [
             "all-MiniLM-L6-v2",
+            "all-MiniLM-L12-v2",
             "all-mpnet-base-v2",
-            "all-MiniLM-L12-v2"
+            "custom"
           ],
           "default": "all-MiniLM-L6-v2",
           "description": "Embedding model for vector search (requires re-indexing if changed)",
           "enumDescriptions": [
             "Fast, 384d (Recommended for most users)",
+            "Balanced, 384d",
             "Best quality, 768d (Slower indexing, better accuracy)",
-            "Balanced, 384d"
+            "Custom HuggingFace model (Pro only - requires anyragPilot.customEmbeddingModel)"
           ]
+        },
+        "anyragPilot.customEmbeddingModel": {
+          "type": "string",
+          "default": "",
+          "description": "Custom HuggingFace embedding model name (Pro only, only used when embeddingModel is set to 'custom')",
+          "markdownDescription": "Custom HuggingFace embedding model name. **Pro tier only**. Only used when `#anyragPilot.embeddingModel#` is set to `custom`. Example: `sentence-transformers/multi-qa-mpnet-base-dot-v1`"
         },
         "anyragPilot.pythonPath": {
           "type": "string",

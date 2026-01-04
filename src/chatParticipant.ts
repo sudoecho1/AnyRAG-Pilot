@@ -31,7 +31,19 @@ export class ChatParticipant {
 
             // Get embedding model from config
             const config = vscode.workspace.getConfiguration('anyragPilot');
-            const embeddingModel = config.get<string>('embeddingModel', 'all-MiniLM-L6-v2');
+            let embeddingModel = config.get<string>('embeddingModel', 'all-MiniLM-L6-v2');
+            
+            // If custom model selected, get the custom model name
+            if (embeddingModel === 'custom') {
+                const customModel = config.get<string>('customEmbeddingModel', '');
+                if (!customModel) {
+                    stream.markdown('⚠️ Custom embedding model selected but `customEmbeddingModel` setting is empty. Using default model.\n\n');
+                    embeddingModel = 'all-MiniLM-L6-v2';
+                } else {
+                    embeddingModel = customModel;
+                }
+            }
+            
             const searchResults = config.get<number>('searchResults', 50);
 
             // First check what sources are available

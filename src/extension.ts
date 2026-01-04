@@ -134,6 +134,24 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 }
 
+// Helper to get the configured embedding model (resolving 'custom' to actual model name)
+function getEmbeddingModel(): string {
+    const config = vscode.workspace.getConfiguration('anyragPilot');
+    let embeddingModel = config.get<string>('embeddingModel', 'all-MiniLM-L6-v2');
+    
+    // If custom model selected, get the custom model name
+    if (embeddingModel === 'custom') {
+        const customModel = config.get<string>('customEmbeddingModel', '');
+        if (!customModel) {
+            vscode.window.showWarningMessage('Custom embedding model selected but customEmbeddingModel setting is empty. Using default model.');
+            return 'all-MiniLM-L6-v2';
+        }
+        return customModel;
+    }
+    
+    return embeddingModel;
+}
+
 function registerCommands(context: vscode.ExtensionContext) {
     // Index Workspace
     context.subscriptions.push(
@@ -156,7 +174,8 @@ function registerCommands(context: vscode.ExtensionContext) {
                     progress.report({ message: 'This may take a few minutes...', increment: -1 });
                     return await mcpClient.indexFolder({
                         folder_path: folderPath,
-                        tags: ['workspace']
+                        tags: ['workspace'],
+                        model_name: getEmbeddingModel()
                     });
                 });
                 
@@ -193,7 +212,8 @@ function registerCommands(context: vscode.ExtensionContext) {
                     progress.report({ message: 'Processing files...', increment: -1 });
                     return await mcpClient.indexFolder({
                         folder_path: folderPath,
-                        tags: ['folder']
+                        tags: ['folder'],
+                        model_name: getEmbeddingModel()
                     });
                 });
                 
@@ -229,7 +249,8 @@ function registerCommands(context: vscode.ExtensionContext) {
                     progress.report({ message: 'Processing file...', increment: -1 });
                     return await mcpClient.indexFile({
                         file_path: filePath,
-                        tags: ['file', fileName]
+                        tags: ['file', fileName],
+                        model_name: getEmbeddingModel()
                     });
                 });
                 
@@ -268,7 +289,8 @@ function registerCommands(context: vscode.ExtensionContext) {
                     progress.report({ message: 'Cloning and indexing repository...', increment: -1 });
                     return await mcpClient.indexGitHubRepo({
                         repo_url: repoUrl,
-                        tags: ['github']
+                        tags: ['github'],
+                        model_name: getEmbeddingModel()
                     });
                 });
                 
