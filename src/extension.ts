@@ -651,14 +651,60 @@ function registerCommands(context: vscode.ExtensionContext) {
                 return;
             }
             
-            const modelName = await vscode.window.showInputBox({
-                prompt: 'Enter embedding model (or leave empty for default)',
-                placeHolder: 'e.g., BAAI/bge-large-en-v1.5, all-mpnet-base-v2',
-                value: getEmbeddingModel()
+            // Show model selection with presets
+            const modelOptions = [
+                {
+                    label: 'all-MiniLM-L6-v2',
+                    description: 'Fast, 384d (Recommended)',
+                    detail: 'Best for general use - fast indexing and good accuracy',
+                    model: 'all-MiniLM-L6-v2'
+                },
+                {
+                    label: 'all-MiniLM-L12-v2',
+                    description: 'Balanced, 384d',
+                    detail: 'Good balance between speed and quality',
+                    model: 'all-MiniLM-L12-v2'
+                },
+                {
+                    label: 'all-mpnet-base-v2',
+                    description: 'Best quality, 768d',
+                    detail: 'Highest accuracy but slower indexing',
+                    model: 'all-mpnet-base-v2'
+                },
+                {
+                    label: '$(edit) Custom Model',
+                    description: 'Enter custom HuggingFace model',
+                    detail: 'Pro tier: Use any compatible sentence-transformers model',
+                    model: 'custom'
+                }
+            ];
+            
+            const selectedModel = await vscode.window.showQuickPick(modelOptions, {
+                placeHolder: 'Select embedding model for this index'
             });
             
+            if (!selectedModel) {
+                return;
+            }
+            
+            let modelName = selectedModel.model;
+            
+            // If custom selected, prompt for model name
+            if (modelName === 'custom') {
+                const customModel = await vscode.window.showInputBox({
+                    prompt: 'Enter HuggingFace model name',
+                    placeHolder: 'e.g., BAAI/bge-large-en-v1.5, sentence-transformers/multi-qa-mpnet-base-dot-v1'
+                });
+                
+                if (!customModel) {
+                    return;
+                }
+                
+                modelName = customModel;
+            }
+            
             try {
-                const result = await mcpClient.createIndex(indexName, modelName || undefined);
+                const result = await mcpClient.createIndex(indexName, modelName);
                 
                 if (result.error) {
                     vscode.window.showErrorMessage(`Failed to create index: ${result.error}`);
