@@ -8,6 +8,7 @@ export interface IndexFolderParams extends Record<string, unknown> {
     exclude_dirs?: string[];
     tags?: string[];
     model_name?: string;
+    index_name?: string;
 }
 
 export interface IndexGitHubRepoParams extends Record<string, unknown> {
@@ -16,6 +17,7 @@ export interface IndexGitHubRepoParams extends Record<string, unknown> {
     file_extensions?: string[];
     tags?: string[];
     model_name?: string;
+    index_name?: string;
 }
 
 export interface IndexChatParams extends Record<string, unknown> {
@@ -24,6 +26,7 @@ export interface IndexChatParams extends Record<string, unknown> {
     tags?: string[];
     model_name?: string;
     chunk_size?: number;
+    index_name?: string;
 }
 
 export interface IndexFileParams extends Record<string, unknown> {
@@ -31,12 +34,14 @@ export interface IndexFileParams extends Record<string, unknown> {
     tags?: string[];
     model_name?: string;
     chunk_size?: number;
+    index_name?: string;
 }
 
 export interface SearchParams extends Record<string, unknown> {
     query: string;
     n_results?: number;
     model_name?: string;
+    index_name?: string;
 }
 
 export interface IndexSource {
@@ -319,6 +324,51 @@ export class MCPClient {
         const result = await this.client.callTool({
             name: 'remove_tags',
             arguments: { source_id: sourceId, tags } as Record<string, unknown>
+        });
+
+        return (result.content as any)[0];
+    }
+
+    // Index management methods
+    async createIndex(indexName: string, modelName?: string): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const cleanParams: Record<string, unknown> = { index_name: indexName };
+        if (modelName) {
+            cleanParams.model_name = modelName;
+        }
+
+        const result = await this.client.callTool({
+            name: 'create_index',
+            arguments: cleanParams
+        });
+
+        return (result.content as any)[0];
+    }
+
+    async listIndices(): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'list_indices',
+            arguments: {} as Record<string, unknown>
+        });
+
+        return (result.content as any)[0];
+    }
+
+    async deleteIndex(indexName: string): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'delete_index_by_name',
+            arguments: { index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];

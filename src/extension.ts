@@ -10,7 +10,9 @@ let anyragServer: AnyRAGServer;
 let licenseManager: LicenseManager;
 let mcpClient: MCPClient;
 let statusBarItem: vscode.StatusBarItem;
+let indexStatusBarItem: vscode.StatusBarItem;
 let purchaseFlow: PurchaseFlow;
+let activeIndex: string = 'default';
 
 async function registerMCPServer(pythonPath: string, launcherPath: string, licenseKey?: string) {
     const config = vscode.workspace.getConfiguration();
@@ -67,6 +69,16 @@ async function updateLicenseContext() {
     await vscode.commands.executeCommand('setContext', 'anyrag:pro:active', hasPro);
 }
 
+function updateIndexStatusBar() {
+    if (!indexStatusBarItem) {
+        return;
+    }
+    
+    indexStatusBarItem.text = `$(database) ${activeIndex}`;
+    indexStatusBarItem.tooltip = `Active Index: ${activeIndex}
+Click to switch indices`;
+}
+
 export async function activate(context: vscode.ExtensionContext) {
     console.log('=== AnyRAG Pilot Extension Activating === TIMESTAMP:', Date.now());
 
@@ -112,7 +124,7 @@ export async function activate(context: vscode.ExtensionContext) {
         registerCommands(context);
         
         // Register chat participant
-        const chatParticipant = new ChatParticipant(mcpClient);
+        const chatParticipant = new ChatParticipant(mcpClient, () => activeIndex);
         const participant = vscode.chat.createChatParticipant('anyrag-pilot.assistant', chatParticipant.handleRequest.bind(chatParticipant));
         context.subscriptions.push(participant);
         console.log('Chat participant registered');
@@ -125,6 +137,13 @@ export async function activate(context: vscode.ExtensionContext) {
         statusBarItem.command = 'anyrag-pilot.showLicenseInfo';
         statusBarItem.show();
         context.subscriptions.push(statusBarItem);
+        
+        // Create index selector status bar item
+        indexStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+        updateIndexStatusBar();
+        indexStatusBarItem.command = 'anyrag-pilot.switchIndex';
+        indexStatusBarItem.show();
+        context.subscriptions.push(indexStatusBarItem);
         
         console.log('AnyRAG Pilot extension activated successfully');
 
@@ -175,7 +194,8 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return await mcpClient.indexFolder({
                         folder_path: folderPath,
                         tags: ['workspace'],
-                        model_name: getEmbeddingModel()
+                        model_name: getEmbeddingModel(),
+                        index_name: activeIndex
                     });
                 });
                 
@@ -213,7 +233,8 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return await mcpClient.indexFolder({
                         folder_path: folderPath,
                         tags: ['folder'],
-                        model_name: getEmbeddingModel()
+                        model_name: getEmbeddingModel(),
+                        index_name: activeIndex
                     });
                 });
                 
@@ -250,7 +271,8 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return await mcpClient.indexFile({
                         file_path: filePath,
                         tags: ['file', fileName],
-                        model_name: getEmbeddingModel()
+                        model_name: getEmbeddingModel(),
+                        index_name: activeIndex
                     });
                 });
                 
@@ -290,7 +312,8 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return await mcpClient.indexGitHubRepo({
                         repo_url: repoUrl,
                         tags: ['github'],
-                        model_name: getEmbeddingModel()
+                        model_name: getEmbeddingModel(),
+                        index_name: activeIndex
                     });
                 });
                 
@@ -600,7 +623,193 @@ function registerCommands(context: vscode.ExtensionContext) {
                 }
             }
         })
-    );}
+    );
+    
+    // Index Management Commands
+    
+    // Create Index
+    context.subscriptions.push(
+        vscode.commands.registerCommand('anyrag-pilot.createIndex', async () => {
+            const indexName = await vscode.window.showInputBox({
+                prompt: 'Enter name for new index',
+                placeHolder: 'e.g., code-bge, docs-mpnet',
+                validateInput: (value) => {
+                    if (!value || value.trim() === '') {
+                        return 'Index name cannot be empty';
+                    }
+                    if (value === 'default') {
+                        return 'Cannot create index named "default"';
+                    }
+                    if (!/^[a-z0-9-_]+$/.test(value)) {
+                        return 'Index name can only contain lowercase letters, numbers, hyphens, and underscores';
+                    }
+                    return null;
+                }
+            });
+            
+            if (!indexName) {
+                return;
+            }
+            
+            const modelName = await vscode.window.showInputBox({
+                prompt: 'Enter embedding model (or leave empty for default)',
+                placeHolder: 'e.g., BAAI/bge-large-en-v1.5, all-mpnet-base-v2',
+                value: getEmbeddingModel()
+            });
+            
+            try {
+                const result = await mcpClient.createIndex(indexName, modelName || undefined);
+                
+                if (result.error) {
+                    vscode.window.showErrorMessage(`Failed to create index: ${result.error}`);
+                } else {
+                    vscode.window.showInformationMessage(`✓ Created index "${indexName}" with model ${result.model_name}`);
+                    // Switch to the new index
+                    activeIndex = indexName;
+                    updateIndexStatusBar();
+                }
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`Failed to create index: ${error.message}`);
+            }
+        })
+    );
+    
+    // Switch Index
+    context.subscriptions.push(
+        vscode.commands.registerCommand('anyrag-pilot.switchIndex', async () => {
+            try {
+                const indicesResult = await mcpClient.listIndices();
+                
+                if (indicesResult.error) {
+                    vscode.window.showErrorMessage(`Failed to list indices: ${indicesResult.error}`);
+                    return;
+                }
+                
+                const indices = indicesResult.indices || [];
+                
+                if (indices.length === 0) {
+                    vscode.window.showInformationMessage('No indices found. Creating default index...');
+                    return;
+                }
+                
+                interface IndexItem extends vscode.QuickPickItem {
+                    indexName: string;
+                }
+                
+                const items: IndexItem[] = indices.map((idx: any) => ({
+                    label: idx.index_name,
+                    description: `${idx.model_name} (${idx.document_count} docs)`,
+                    detail: `Created: ${new Date(idx.created_at).toLocaleString()}`,
+                    indexName: idx.index_name
+                }));
+                
+                const selected = await vscode.window.showQuickPick(items, {
+                    placeHolder: `Current: ${activeIndex}`
+                });
+                
+                if (selected) {
+                    activeIndex = selected.indexName;
+                    updateIndexStatusBar();
+                    vscode.window.showInformationMessage(`Switched to index "${activeIndex}"`);
+                }
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`Failed to switch index: ${error.message}`);
+            }
+        })
+    );
+    
+    // List Indices
+    context.subscriptions.push(
+        vscode.commands.registerCommand('anyrag-pilot.listIndices', async () => {
+            try {
+                const result = await mcpClient.listIndices();
+                
+                if (result.error) {
+                    vscode.window.showErrorMessage(`Failed to list indices: ${result.error}`);
+                    return;
+                }
+                
+                const indices = result.indices || [];
+                
+                if (indices.length === 0) {
+                    vscode.window.showInformationMessage('No indices found.');
+                    return;
+                }
+                
+                const message = indices.map((idx: any) => 
+                    `• ${idx.index_name}: ${idx.model_name} (${idx.document_count} docs, created ${new Date(idx.created_at).toLocaleDateString()})`
+                ).join('\n');
+                
+                vscode.window.showInformationMessage(`Indices:\n${message}`, { modal: true });
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`Failed to list indices: ${error.message}`);
+            }
+        })
+    );
+    
+    // Delete Index
+    context.subscriptions.push(
+        vscode.commands.registerCommand('anyrag-pilot.deleteIndex', async () => {
+            try {
+                const indicesResult = await mcpClient.listIndices();
+                
+                if (indicesResult.error) {
+                    vscode.window.showErrorMessage(`Failed to list indices: ${indicesResult.error}`);
+                    return;
+                }
+                
+                const indices = (indicesResult.indices || []).filter((idx: any) => idx.index_name !== 'default');
+                
+                if (indices.length === 0) {
+                    vscode.window.showInformationMessage('No indices to delete (cannot delete "default" index).');
+                    return;
+                }
+                
+                interface IndexItem extends vscode.QuickPickItem {
+                    indexName: string;
+                }
+                
+                const items: IndexItem[] = indices.map((idx: any) => ({
+                    label: idx.index_name,
+                    description: `${idx.model_name} (${idx.document_count} docs)`,
+                    indexName: idx.index_name
+                }));
+                
+                const selected = await vscode.window.showQuickPick(items, {
+                    placeHolder: 'Select index to delete'
+                });
+                
+                if (!selected) {
+                    return;
+                }
+                
+                const confirm = await vscode.window.showWarningMessage(
+                    `Delete index "${selected.indexName}" and all its documents?`,
+                    { modal: true },
+                    'Delete'
+                );
+                
+                if (confirm === 'Delete') {
+                    const result = await mcpClient.deleteIndex(selected.indexName);
+                    
+                    if (result.error) {
+                        vscode.window.showErrorMessage(`Failed to delete index: ${result.error}`);
+                    } else {
+                        vscode.window.showInformationMessage(`✓ Deleted index "${selected.indexName}"`);
+                        
+                        // If we deleted the active index, switch to default
+                        if (activeIndex === selected.indexName) {
+                            activeIndex = 'default';
+                            updateIndexStatusBar();
+                        }
+                    }
+                }
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`Failed to delete index: ${error.message}`);
+            }
+        })
+    );
+}
 
 export async function deactivate() {
     console.log('AnyRAG Pilot deactivating...');
