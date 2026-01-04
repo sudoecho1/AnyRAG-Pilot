@@ -46,8 +46,11 @@ export class ChatParticipant {
             
             const searchResults = config.get<number>('searchResults', 50);
 
+            // Get active index
+            const activeIndex = this.getActiveIndex();
+
             // First check what sources are available
-            const indexStatus = await this.mcpClient.showIndex();
+            const indexStatus = await this.mcpClient.showIndex(false, undefined, activeIndex);
             
             // Ensure we have active sources
             const activeSources = indexStatus.sources?.filter((s: IndexSource) => s.active) || [];
@@ -55,7 +58,7 @@ export class ChatParticipant {
                 stream.markdown('⚠️ You have indexed sources but none are activated. Activating all sources...\n\n');
                 // Activate all sources
                 for (const source of indexStatus.sources) {
-                    await this.mcpClient.activateSource(source.source_id);
+                    await this.mcpClient.activateSource(source.source_id, activeIndex);
                 }
             }
             
@@ -64,7 +67,7 @@ export class ChatParticipant {
                 query,
                 n_results: searchResults,
                 model_name: embeddingModel,
-                index_name: this.getActiveIndex()
+                index_name: activeIndex
             });
 
             if (!searchResult.results || searchResult.results.length === 0) {

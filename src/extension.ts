@@ -331,7 +331,7 @@ function registerCommands(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.showIndex', async () => {
             try {
-                const indexData = await mcpClient.showIndex();
+                const indexData = await mcpClient.showIndex(false, undefined, activeIndex);
                 
                 if (indexData.sources.length === 0) {
                     vscode.window.showInformationMessage('No sources indexed yet. Use "Index Workspace" or "Index GitHub Repo" to get started.');
