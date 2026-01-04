@@ -67,15 +67,22 @@
       },
       {
         "command": "anyrag-pilot.activateLicense",
-        "title": "AnyRAG Pilot: Activate Pro License"
+        "title": "AnyRAG Pilot: Activate Pro License",
+        "when": "!anyrag:pro:active"
       },
       {
         "command": "anyrag-pilot.showLicenseInfo",
         "title": "AnyRAG Pilot: Show License Info"
       },
       {
+        "command": "anyrag-pilot.upgradeToPro",
+        "title": "AnyRAG Pilot: Upgrade to Pro",
+        "when": "!anyrag:pro:active"
+      },
+      {
         "command": "anyrag-pilot.deactivateLicense",
-        "title": "AnyRAG Pilot: Deactivate License"
+        "title": "AnyRAG Pilot: Deactivate License",
+        "when": "anyrag:pro:active"
       },
       {
         "command": "anyrag-pilot.indexFile",
@@ -127,6 +134,10 @@
       "commandPalette": [
         {
           "command": "anyrag-pilot.activateLicense",
+          "when": "!anyrag:pro:active"
+        },
+        {
+          "command": "anyrag-pilot.upgradeToPro",
           "when": "!anyrag:pro:active"
         },
         {
