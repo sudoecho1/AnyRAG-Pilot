@@ -408,7 +408,7 @@ function registerCommands(context: vscode.ExtensionContext) {
                     cancellable: false
                 }, async (progress) => {
                     progress.report({ message: 'Updating index...', increment: -1 });
-                    await mcpClient.activateSource(source.source_id);
+                    await mcpClient.activateSource(source.source_id, activeIndex);
                 });
                 vscode.window.showInformationMessage(`Activated: ${source.source_path}`);
                 break;
@@ -419,7 +419,7 @@ function registerCommands(context: vscode.ExtensionContext) {
                     cancellable: false
                 }, async (progress) => {
                     progress.report({ message: 'Updating index...', increment: -1 });
-                    await mcpClient.deactivateSource(source.source_id);
+                    await mcpClient.deactivateSource(source.source_id, activeIndex);
                 });
                 vscode.window.showInformationMessage(`Deactivated: ${source.source_path}`);
                 break;
