@@ -36,7 +36,6 @@ export class ChatParticipant {
 
             // First check what sources are available
             const indexStatus = await this.mcpClient.showIndex();
-            console.log('Index status:', JSON.stringify(indexStatus, null, 2));
             
             // Ensure we have active sources
             const activeSources = indexStatus.sources?.filter((s: IndexSource) => s.active) || [];
@@ -54,12 +53,6 @@ export class ChatParticipant {
                 n_results: searchResults,
                 model_name: embeddingModel
             });
-            
-            console.log('Search result:', JSON.stringify({
-                documentCount: searchResult.results?.length || 0,
-                query,
-                fullResult: searchResult
-            }));
 
             if (!searchResult.results || searchResult.results.length === 0) {
                 stream.markdown('No relevant content found in indexed sources. Try indexing your workspace or GitHub repositories first.\n\n');
