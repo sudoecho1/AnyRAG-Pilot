@@ -436,7 +436,7 @@ function registerCommands(context: vscode.ExtensionContext) {
                         cancellable: false
                     }, async (progress) => {
                         progress.report({ message: 'Removing source from index...', increment: -1 });
-                        await mcpClient.removeSource(source.source_id);
+                        await mcpClient.removeSource(source.source_id, activeIndex);
                     });
                     vscode.window.showInformationMessage(`Removed: ${source.source_path}`);
                 }
@@ -466,7 +466,7 @@ function registerCommands(context: vscode.ExtensionContext) {
             cancellable: false
         }, async (progress) => {
             progress.report({ message: 'Updating source tags...', increment: -1 });
-            await mcpClient.addTags(source.source_id, tags);
+            await mcpClient.addTags(source.source_id, tags, activeIndex);
         });
         vscode.window.showInformationMessage(`Added tags: ${tags.join(', ')}`);
     }
@@ -496,7 +496,7 @@ function registerCommands(context: vscode.ExtensionContext) {
             cancellable: false
         }, async (progress) => {
             progress.report({ message: 'Updating source tags...', increment: -1 });
-            await mcpClient.removeTags(source.source_id, tags);
+            await mcpClient.removeTags(source.source_id, tags, activeIndex);
         });
         vscode.window.showInformationMessage(`Removed tags: ${tags.join(', ')}`);
     }
@@ -517,7 +517,7 @@ function registerCommands(context: vscode.ExtensionContext) {
                     cancellable: false
                 }, async () => {
                     try {
-                        await mcpClient.clearIndex();
+                        await mcpClient.clearIndex(activeIndex);
                     } catch (error) {
                         vscode.window.showErrorMessage(`Failed to clear index: ${error}`);
                         throw error;

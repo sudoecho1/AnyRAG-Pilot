@@ -251,27 +251,27 @@ export class MCPClient {
         return JSON.parse((result.content as any)[0].text);
     }
 
-    async clearIndex(): Promise<any> {
+    async clearIndex(indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'clear_index',
-            arguments: {} as Record<string, unknown>
+            arguments: { index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
     }
 
-    async removeSource(sourceId: string): Promise<any> {
+    async removeSource(sourceId: string, indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'remove_source',
-            arguments: { source_id: sourceId } as Record<string, unknown>
+            arguments: { source_id: sourceId, index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
@@ -303,27 +303,27 @@ export class MCPClient {
         return (result.content as any)[0];
     }
 
-    async addTags(sourceId: string, tags: string[]): Promise<any> {
+    async addTags(sourceId: string, tags: string[], indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'add_tags',
-            arguments: { source_id: sourceId, tags } as Record<string, unknown>
+            arguments: { source_id: sourceId, tags, index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
     }
 
-    async removeTags(sourceId: string, tags: string[]): Promise<any> {
+    async removeTags(sourceId: string, tags: string[], indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'remove_tags',
-            arguments: { source_id: sourceId, tags } as Record<string, unknown>
+            arguments: { source_id: sourceId, tags, index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
