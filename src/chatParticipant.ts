@@ -10,7 +10,7 @@ interface ChatContext {
 export class ChatParticipant {
     private conversationContext: Map<string, ChatContext[]> = new Map();
     
-    constructor(private mcpClient: MCPClient) {}
+    constructor(private mcpClient: MCPClient, private getActiveIndex: () => string) {}
 
     async handleRequest(
         request: vscode.ChatRequest,
@@ -63,7 +63,8 @@ export class ChatParticipant {
             const searchResult: SearchResult = await this.mcpClient.search({
                 query,
                 n_results: searchResults,
-                model_name: embeddingModel
+                model_name: embeddingModel,
+                index_name: this.getActiveIndex()
             });
 
             if (!searchResult.results || searchResult.results.length === 0) {
