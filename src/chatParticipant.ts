@@ -32,7 +32,7 @@ export class ChatParticipant {
             // Get embedding model from config
             const config = vscode.workspace.getConfiguration('anyragPilot');
             const embeddingModel = config.get<string>('embeddingModel', 'all-MiniLM-L6-v2');
-            const searchResults = config.get<number>('searchResults', 10); // Default 10, backend will cap based on tier
+            const searchResults = config.get<number>('searchResults', 20); // Default 20, backend caps Community at 5
 
             // First check what sources are available
             const indexStatus = await this.mcpClient.showIndex();
@@ -126,12 +126,15 @@ export class ChatParticipant {
                 stream.markdown(fragment);
             }
 
-            // Add source references
+            // Add source references (show top 3 only)
             stream.markdown('\n\n---\n\n### 📚 Sources\n\n');
+            let sourceCount = 0;
             for (const [source, results] of resultsBySource.entries()) {
+                if (sourceCount >= 3) break;
                 const fileName = source.split('/').pop() || source;
-                const avgSimilarity = (results.reduce((sum, r) => sum + parseFloat(r.similarity), 0) / results.length).toFixed(1);
+                const avgSimilarity = (results.reduce((sum: number, r: any) => sum + parseFloat(r.similarity), 0) / results.length).toFixed(1);
                 stream.markdown(`- **${fileName}** (${results.length} chunk${results.length > 1 ? 's' : ''}, ${avgSimilarity}% relevant)\n`);
+                sourceCount++;
             }
 
             return {
