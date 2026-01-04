@@ -3,11 +3,14 @@ import * as path from 'path';
 import { AnyRAGServer } from './anyragServer.js';
 import { LicenseManager } from './licenseManager.js';
 import { MCPClient, IndexSource } from './mcpClient.js';
+import { PurchaseFlow } from './purchaseFlow.js';
+import { ChatParticipant } from './chatParticipant.js';
 
 let anyragServer: AnyRAGServer;
 let licenseManager: LicenseManager;
 let mcpClient: MCPClient;
 let statusBarItem: vscode.StatusBarItem;
+let purchaseFlow: PurchaseFlow;
 
 async function registerMCPServer(pythonPath: string, launcherPath: string, licenseKey?: string) {
     const config = vscode.workspace.getConfiguration();
@@ -60,16 +63,21 @@ async function updateLicenseContext() {
     }
     
     const hasPro = await licenseManager.hasProAccess();
+    console.log(`Setting context anyrag:pro:active = ${hasPro}`);
     await vscode.commands.executeCommand('setContext', 'anyrag:pro:active', hasPro);
 }
 
 export async function activate(context: vscode.ExtensionContext) {
-    console.log('=== AnyRAG Pilot Extension Activating ===');
+    console.log('=== AnyRAG Pilot Extension Activating === TIMESTAMP:', Date.now());
 
     try {
         // Initialize license manager
         licenseManager = new LicenseManager(context);
         console.log('License manager initialized');
+
+        // Initialize purchase flow
+        purchaseFlow = new PurchaseFlow(context);
+        console.log('Purchase flow initialized');
 
         // Initialize AnyRAG server (setup only, don't start yet)
         anyragServer = new AnyRAGServer(context);
@@ -103,9 +111,17 @@ export async function activate(context: vscode.ExtensionContext) {
         // Register VS Code commands for UI integration
         registerCommands(context);
         
+        // Register chat participant
+        const chatParticipant = new ChatParticipant(mcpClient);
+        const participant = vscode.chat.createChatParticipant('anyrag-pilot.assistant', chatParticipant.handleRequest.bind(chatParticipant));
+        context.subscriptions.push(participant);
+        console.log('Chat participant registered');
+        
         // Create status bar item
         statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+        console.log('About to update status bar and license context...');
         await updateStatusBar();
+        console.log('Status bar updated');
         statusBarItem.command = 'anyrag-pilot.showLicenseInfo';
         statusBarItem.show();
         context.subscriptions.push(statusBarItem);
@@ -519,13 +535,21 @@ function registerCommands(context: vscode.ExtensionContext) {
                     'Upgrade to Pro'
                 );
                 if (action === 'Upgrade to Pro') {
-                    vscode.env.openExternal(vscode.Uri.parse('https://anyrag.dev/pricing'));
+                    await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
                 }
             } else {
                 vscode.window.showInformationMessage(message, { modal: true });
             }
         })
     );
+    
+    // Upgrade to Pro
+    context.subscriptions.push(
+        vscode.commands.registerCommand('anyrag-pilot.upgradeToPro', async () => {
+            await purchaseFlow.showPurchaseOptions();
+        })
+    );
+    
     // Deactivate License
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.deactivateLicense', async () => {
