@@ -290,14 +290,14 @@ export class MCPClient {
         return (result.content as any)[0];
     }
 
-    async deactivateSource(sourceId: string): Promise<any> {
+    async deactivateSource(sourceId: string, indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'deactivate_source',
-            arguments: { source_id: sourceId } as Record<string, unknown>
+            arguments: { source_id: sourceId, index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
