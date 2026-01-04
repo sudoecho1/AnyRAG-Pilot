@@ -32,7 +32,7 @@ export class ChatParticipant {
             // Get embedding model from config
             const config = vscode.workspace.getConfiguration('anyragPilot');
             const embeddingModel = config.get<string>('embeddingModel', 'all-MiniLM-L6-v2');
-            const searchResults = config.get<number>('searchResults', 5);
+            const searchResults = config.get<number>('searchResults', 10); // Default 10, backend will cap based on tier
 
             // First check what sources are available
             const indexStatus = await this.mcpClient.showIndex();
