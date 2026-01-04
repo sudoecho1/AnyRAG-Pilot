@@ -50,10 +50,18 @@ export interface IndexSource {
     active: boolean;
 }
 
+export interface SearchResultItem {
+    rank: number;
+    document: string;
+    file_path: string;
+    chunk_index: number;
+    similarity_score: number;
+}
+
 export interface SearchResult {
-    documents: string[][];
-    metadatas: Array<Record<string, any>>;
-    distances: number[][];
+    query: string;
+    results: SearchResultItem[];
+    total_results: number;
 }
 
 export class MCPClient {

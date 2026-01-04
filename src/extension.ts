@@ -4,6 +4,7 @@ import { AnyRAGServer } from './anyragServer.js';
 import { LicenseManager } from './licenseManager.js';
 import { MCPClient, IndexSource } from './mcpClient.js';
 import { PurchaseFlow } from './purchaseFlow.js';
+import { ChatParticipant } from './chatParticipant.js';
 
 let anyragServer: AnyRAGServer;
 let licenseManager: LicenseManager;
@@ -109,6 +110,12 @@ export async function activate(context: vscode.ExtensionContext) {
         
         // Register VS Code commands for UI integration
         registerCommands(context);
+        
+        // Register chat participant
+        const chatParticipant = new ChatParticipant(mcpClient);
+        const participant = vscode.chat.createChatParticipant('anyrag-pilot.assistant', chatParticipant.handleRequest.bind(chatParticipant));
+        context.subscriptions.push(participant);
+        console.log('Chat participant registered');
         
         // Create status bar item
         statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
