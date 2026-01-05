@@ -19,6 +19,11 @@ export class ChatParticipant {
         token: vscode.CancellationToken
     ): Promise<vscode.ChatResult> {
         try {
+            // Handle /indexchat command to index current chat
+            if (request.command === 'indexchat') {
+                return await this.handleIndexCommand(context, stream);
+            }
+
             const query = request.prompt;
 
             if (!query.trim()) {
@@ -252,4 +257,82 @@ export class ChatParticipant {
         
         stream.markdown('- Run `Show Indexed Sources` to see all available context\n');
     }
-}
+
+    private async handleIndexCommand(
+        context: vscode.ChatContext,
+        stream: vscode.ChatResponseStream
+    ): Promise<vscode.ChatResult> {
+        try {
+            stream.progress('Indexing chat conversation...');
+
+            // Extract all messages from history
+            const messages: string[] = [];
+            
+            for (const turn of context.history) {
+                if (turn instanceof vscode.ChatRequestTurn) {
+                    messages.push(`User: ${turn.prompt}`);
+                } else if (turn instanceof vscode.ChatResponseTurn) {
+                    let responseText = '';
+                    for (const part of turn.response) {
+                        if (part instanceof vscode.ChatResponseMarkdownPart) {
+                            responseText += part.value.value;
+                        }
+                    }
+                    if (responseText) {
+                        messages.push(`Assistant: ${responseText}`);
+                    }
+                }
+            }
+
+            if (messages.length === 0) {
+                stream.markdown('⚠️ No conversation history to index. Start chatting first!\n\n');
+                return { metadata: { command: 'indexchat', success: false } };
+            }
+
+            // Combine all messages into a single text
+            const fullConversation = messages.join('\n\n---\n\n');
+
+            // Generate chat name with timestamp
+            const now = new Date();
+            const chatName = `chat-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getHours()}${now.getMinutes()}`;
+
+            // Get embedding model and active index
+            const config = vscode.workspace.getConfiguration('anyragPilot');
+            let embeddingModel = config.get<string>('embeddingModel', 'all-MiniLM-L6-v2');
+            
+            if (embeddingModel === 'custom') {
+                const customModel = config.get<string>('customEmbeddingModel', '');
+                embeddingModel = customModel || 'all-MiniLM-L6-v2';
+            }
+
+            const activeIndex = this.getActiveIndex();
+
+            // Index the conversation
+            const result = await this.mcpClient.indexChat({
+                content: fullConversation,
+                chat_name: chatName,
+                tags: ['chat', 'conversation'],
+                model_name: embeddingModel,
+                index_name: activeIndex
+            });
+
+            if (result.error) {
+                stream.markdown(`❌ **Failed to index conversation**\n\n${result.error}\n\n`);
+                return { metadata: { command: 'indexchat', success: false } };
+            }
+
+            stream.markdown(`✅ **Chat indexed successfully!**\n\n`);
+            stream.markdown(`- **Name:** ${chatName}\n`);
+            stream.markdown(`- **Messages:** ${messages.length}\n`);
+            stream.markdown(`- **Chunks:** ${result.total_chunks}\n`);
+            stream.markdown(`- **Index:** ${activeIndex}\n`);
+            stream.markdown(`- **Model:** ${embeddingModel}\n\n`);
+            stream.markdown('You can now search this conversation using @anyrag queries!\n');
+
+            return { metadata: { command: 'indexchat', success: true, chatName } };
+
+        } catch (error: any) {
+            stream.markdown(`❌ **Error indexing chat**\n\n\`\`\`\n${error.message}\n\`\`\`\n\n`);
+            return { metadata: { command: 'indexchat', success: false } };
+        }
+    }}
