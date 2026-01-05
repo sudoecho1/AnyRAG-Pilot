@@ -279,7 +279,18 @@ export class MCPClient {
             arguments: { index_name: indexName } as Record<string, unknown>
         });
 
-        return JSON.parse((result.content as any)[0].text);
+        const rawText = (result.content as any)[0].text;
+        
+        // Check if the response is an error message
+        if (rawText.startsWith('Error') || rawText.startsWith('Unknown')) {
+            throw new Error(rawText);
+        }
+        
+        try {
+            return JSON.parse(rawText);
+        } catch (e) {
+            throw new Error(`Failed to parse index info: ${rawText.substring(0, 200)}`);
+        }
     }
 
     async clearIndex(indexName: string = 'default'): Promise<any> {

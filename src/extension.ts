@@ -805,10 +805,17 @@ function registerCommands(context: vscode.ExtensionContext) {
                 }
                 
                 // Show action menu
-                const action = await vscode.window.showQuickPick([
+                const actions = [
                     { label: '$(arrow-swap) Switch to this index', value: 'switch' },
                     { label: '$(edit) Rename this index', value: 'rename' }
-                ], {
+                ];
+                
+                // Add delete option for non-default indices
+                if (selected.indexName !== 'default') {
+                    actions.push({ label: '$(trash) Delete this index', value: 'delete' });
+                }
+                
+                const action = await vscode.window.showQuickPick(actions, {
                     placeHolder: `What would you like to do with "${selected.indexName}"?`
                 });
                 
@@ -821,6 +828,32 @@ function registerCommands(context: vscode.ExtensionContext) {
                         activeIndex = selected.indexName;
                         updateIndexStatusBar();
                         vscode.window.showInformationMessage(`Switched to index "${activeIndex}"`);
+                    }
+                } else if (action.value === 'delete') {
+                    const confirm = await vscode.window.showWarningMessage(
+                        `Delete index "${selected.indexName}" and all its documents?`,
+                        { modal: true },
+                        'Delete'
+                    );
+                    
+                    if (confirm === 'Delete') {
+                        try {
+                            const result = await mcpClient.deleteIndex(selected.indexName);
+                            
+                            if (result.error) {
+                                vscode.window.showErrorMessage(`Failed to delete index: ${result.error}`);
+                            } else {
+                                vscode.window.showInformationMessage(`✓ Deleted index "${selected.indexName}"`);
+                                
+                                // If we deleted the active index, switch to default
+                                if (activeIndex === selected.indexName) {
+                                    activeIndex = 'default';
+                                    updateIndexStatusBar();
+                                }
+                            }
+                        } catch (error: any) {
+                            vscode.window.showErrorMessage(`Failed to delete index: ${error.message}`);
+                        }
                     }
                 } else if (action.value === 'rename') {
                     // Get existing indices for validation
