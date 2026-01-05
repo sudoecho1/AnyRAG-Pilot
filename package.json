@@ -45,7 +45,7 @@
         "commands": [
           {
             "name": "indexchat",
-            "description": "Index this chat conversation for future search"
+            "description": "Index this chat conversation. Optionally provide a custom name: /indexchat my-name"
           }
         ]
       }

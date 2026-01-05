@@ -21,7 +21,9 @@ export class ChatParticipant {
         try {
             // Handle /indexchat command to index current chat
             if (request.command === 'indexchat') {
-                return await this.handleIndexCommand(context, stream);
+                // Check if a custom name was provided
+                const customName = request.prompt?.trim() || undefined;
+                return await this.handleIndexCommand(context, stream, customName);
             }
 
             const query = request.prompt;
@@ -260,7 +262,8 @@ export class ChatParticipant {
 
     private async handleIndexCommand(
         context: vscode.ChatContext,
-        stream: vscode.ChatResponseStream
+        stream: vscode.ChatResponseStream,
+        customName?: string
     ): Promise<vscode.ChatResult> {
         try {
             stream.progress('Indexing chat conversation...');
@@ -292,9 +295,20 @@ export class ChatParticipant {
             // Combine all messages into a single text
             const fullConversation = messages.join('\n\n---\n\n');
 
-            // Generate chat name with timestamp
-            const now = new Date();
-            const chatName = `chat-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getHours()}${now.getMinutes()}`;
+            // Generate stable source_id from first message (for consistent replacement)
+            // This way re-indexing the same conversation replaces instead of duplicates
+            const crypto = await import('crypto');
+            const firstMessage = messages[0] || 'chat-session';
+            const sourceId = crypto.createHash('md5').update(firstMessage).digest('hex');
+            
+            // Use custom name if provided, otherwise generate from hash
+            const chatName = customName || `chat-${sourceId.substring(0, 8)}`;
+            
+            // Validate custom name if provided
+            if (customName && !/^[a-zA-Z0-9_\-\.]+$/.test(customName)) {
+                stream.markdown('⚠️ Invalid name. Use only letters, numbers, underscores, hyphens, and dots.\n\n');
+                return { metadata: { command: 'indexchat', success: false } };
+            }
 
             // Get embedding model and active index
             const config = vscode.workspace.getConfiguration('anyragPilot');
@@ -306,6 +320,25 @@ export class ChatParticipant {
             }
 
             const activeIndex = this.getActiveIndex();
+
+            // Remove existing chat to avoid duplicates
+            // Try both the hash-based ID and custom name (in case it was renamed)
+            try {
+                await this.mcpClient.removeSource(sourceId, activeIndex);
+            } catch (error) {
+                // Source doesn't exist with hash, that's fine
+            }
+            
+            // If using custom name, also try to remove by that name
+            if (customName) {
+                try {
+                    // Generate the source_id that would be created from custom name
+                    const customSourceId = crypto.createHash('md5').update(customName).digest('hex');
+                    await this.mcpClient.removeSource(customSourceId, activeIndex);
+                } catch (error) {
+                    // Source doesn't exist with custom name, that's fine
+                }
+            }
 
             // Index the conversation
             const result = await this.mcpClient.indexChat({
@@ -322,11 +355,17 @@ export class ChatParticipant {
             }
 
             stream.markdown(`✅ **Chat indexed successfully!**\n\n`);
-            stream.markdown(`- **Name:** ${chatName}\n`);
+            stream.markdown(`- **Name:** ${chatName}${customName ? ' (custom)' : ''}\n`);
             stream.markdown(`- **Messages:** ${messages.length}\n`);
             stream.markdown(`- **Chunks:** ${result.total_chunks}\n`);
             stream.markdown(`- **Index:** ${activeIndex}\n`);
             stream.markdown(`- **Model:** ${embeddingModel}\n\n`);
+            stream.markdown('💡 You can re-run `/indexchat` anytime to update with new messages - it will replace the old version.\n\n');
+            if (customName) {
+                stream.markdown(`💡 To rename this chat later, run \`/indexchat new-name\` to index with a different name.\n\n`);
+            } else {
+                stream.markdown(`💡 To give this chat a custom name, run \`/indexchat your-name-here\`.\n\n`);
+            }
             stream.markdown('You can now search this conversation using @anyrag queries!\n');
 
             return { metadata: { command: 'indexchat', success: true, chatName } };
