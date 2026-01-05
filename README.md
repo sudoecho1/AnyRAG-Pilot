@@ -7,18 +7,22 @@ AnyRAG Pilot brings enterprise-grade Retrieval-Augmented Generation (RAG) to you
 ## ✨ Features
 
 - 🤖 **@anyrag Chat Participant** - AI assistant with semantic search over indexed content
+- � **Chat Indexing** - Index conversations with `/indexchat` for future reference
 - 🚀 **GPU Accelerated** - CUDA/MPS support for lightning-fast embeddings
 - 🔒 **Privacy First** - All processing happens locally on your machine
-- 📚 **Index Anything** - Workspaces, GitHub repos, documentation
+- 📚 **Index Anything** - Workspaces, GitHub repos, documentation, chat conversations
 - 🎯 **Semantic Search** - Find relevant context using natural language
 - 💾 **Persistent Storage** - Indices survive across sessions
+- 🗂️ **Multi-Index Support** - Organize content by project or use case (Pro)
 
 ## 💎 Pro Features ($20/month)
 
 - ✨ Unlimited indexed documents (Free: 100 docs)
 - 📦 Unlimited indexed sources (Free: 3 sources)  
 - 🎨 **Custom embedding models** - Use any HuggingFace model (Free: 3 presets)
-- 💬 Conversation indexing for chat history search
+- 💬 **Conversation indexing** - Index and search chat history with `/indexchat`
+- 🗂️ **Multiple indices** - Organize content with unlimited custom indices
+- 🏷️ **Chat naming & management** - Name, rename, and organize indexed chats
 - 🎯 Priority support
 
 ## 🚀 Quick Start
@@ -26,6 +30,19 @@ AnyRAG Pilot brings enterprise-grade Retrieval-Augmented Generation (RAG) to you
 1. **Install the extension** from VS Code Marketplace
 2. **Index your workspace**: `Ctrl+Shift+P` → `AnyRAG Pilot: Index Workspace`
 3. **Ask questions**: Open chat and use `@anyrag what is the authentication flow?`
+4. **Index conversations**: In chat, use `/indexchat` to save your conversation for future search
+
+### 💬 Chat Commands
+
+Use these commands in the `@anyrag` chat participant:
+
+- `/indexchat` - Index the current conversation with an auto-generated name
+- `/indexchat my-chat-name` - Index with a custom name for easy reference
+
+**Managing Indexed Chats:**
+- View chats: `Ctrl+Shift+P` → `AnyRAG Pilot: Show Indexed Sources`
+- Rename chats: Select a chat source → `Rename Chat`
+- Re-run `/indexchat` anytime to update with new messages (replaces old version)
 
 ## 📋 Requirements
 
@@ -80,11 +97,29 @@ AnyRAG validates models automatically and provides clear error messages for inco
 
 **Pro tier** supports creating and managing multiple indices with different embedding models. This lets you organize content by project, language, or use case.
 
-### Creating and Switching Indices
+### Creating and Managing Indices
 
 1. **Create index**: `Ctrl+Shift+P` → `AnyRAG Pilot: Create Index`
-2. **Switch index**: Click the index name in the status bar (bottom right) or use `Ctrl+Shift+P` → `AnyRAG Pilot: Switch Index`
+2. **Switch index**: Click the index name in the status bar (bottom right) or use `Ctrl+Shift+P` → `AnyRAG Pilot: List Indices`
 3. **View all indices**: `Ctrl+Shift+P` → `AnyRAG Pilot: List Indices`
+   - From the list, you can:
+     - **Switch and show sources** - Activate the index and view its contents
+     - **Rename this index** - Change the index name
+     - **Delete this index** - Remove non-default indices
+4. **Navigate back**: All menus include a "← Back" button for easy navigation
+
+### Managing Sources
+
+`Ctrl+Shift+P` → `AnyRAG Pilot: Show Indexed Sources` to view and manage all indexed content:
+
+**For all sources:**
+- Add/remove tags for organization
+- Activate/deactivate sources to control what's searched
+- Remove sources permanently
+
+**For chat sources:**
+- **Rename Chat** - Change the name of indexed conversations
+- Original conversation identity preserved even after renaming
 
 ### Multi-Index Workflows
 
