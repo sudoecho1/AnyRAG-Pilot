@@ -29,25 +29,53 @@ export class ChatParticipant {
             // Show searching indicator
             stream.progress('Searching indexed content...');
 
-            // Get embedding model from config
-            const config = vscode.workspace.getConfiguration('anyragPilot');
-            let embeddingModel = config.get<string>('embeddingModel', 'all-MiniLM-L6-v2');
-            
-            // If custom model selected, get the custom model name
-            if (embeddingModel === 'custom') {
-                const customModel = config.get<string>('customEmbeddingModel', '');
-                if (!customModel) {
-                    stream.markdown('⚠️ Custom embedding model selected but `customEmbeddingModel` setting is empty. Using default model.\n\n');
-                    embeddingModel = 'all-MiniLM-L6-v2';
+            // Get active index
+            const activeIndex = this.getActiveIndex();
+
+            // Get the embedding model used for this index
+            let embeddingModel: string;
+            try {
+                const indexInfo = await this.mcpClient.getIndexInfo(activeIndex);
+                if (indexInfo.model_name) {
+                    embeddingModel = indexInfo.model_name;
+                    console.log(`Using embedding model from index '${activeIndex}': ${embeddingModel}`);
                 } else {
-                    embeddingModel = customModel;
+                    // Index doesn't have model metadata - warn and use config
+                    console.warn(`Index '${activeIndex}' has no model metadata, using config setting`);
+                    stream.markdown(`⚠️ Index '${activeIndex}' doesn't have embedding model metadata. Using your config setting. If you get errors, this index may have been created with a different model.\n\n`);
+                    
+                    const config = vscode.workspace.getConfiguration('anyragPilot');
+                    embeddingModel = config.get<string>('embeddingModel', 'all-MiniLM-L6-v2');
+                    
+                    if (embeddingModel === 'custom') {
+                        const customModel = config.get<string>('customEmbeddingModel', '');
+                        if (!customModel) {
+                            stream.markdown('⚠️ Custom embedding model selected but `customEmbeddingModel` setting is empty. Using default model.\n\n');
+                            embeddingModel = 'all-MiniLM-L6-v2';
+                        } else {
+                            embeddingModel = customModel;
+                        }
+                    }
+                }
+            } catch (error) {
+                // Fall back to config if we can't get index info
+                console.warn('Could not get index info, falling back to config setting', error);
+                const config = vscode.workspace.getConfiguration('anyragPilot');
+                embeddingModel = config.get<string>('embeddingModel', 'all-MiniLM-L6-v2');
+                
+                // If custom model selected, get the custom model name
+                if (embeddingModel === 'custom') {
+                    const customModel = config.get<string>('customEmbeddingModel', '');
+                    if (!customModel) {
+                        stream.markdown('⚠️ Custom embedding model selected but `customEmbeddingModel` setting is empty. Using default model.\n\n');
+                        embeddingModel = 'all-MiniLM-L6-v2';
+                    } else {
+                        embeddingModel = customModel;
+                    }
                 }
             }
             
-            const searchResults = config.get<number>('searchResults', 50);
-
-            // Get active index
-            const activeIndex = this.getActiveIndex();
+            const searchResults = vscode.workspace.getConfiguration('anyragPilot').get<number>('searchResults', 50);
 
             // First check what sources are available
             const indexStatus = await this.mcpClient.showIndex(false, undefined, activeIndex);
