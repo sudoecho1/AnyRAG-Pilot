@@ -8,6 +8,7 @@ export interface IndexFolderParams extends Record<string, unknown> {
     exclude_dirs?: string[];
     tags?: string[];
     model_name?: string;
+    index_name?: string;
 }
 
 export interface IndexGitHubRepoParams extends Record<string, unknown> {
@@ -16,6 +17,7 @@ export interface IndexGitHubRepoParams extends Record<string, unknown> {
     file_extensions?: string[];
     tags?: string[];
     model_name?: string;
+    index_name?: string;
 }
 
 export interface IndexChatParams extends Record<string, unknown> {
@@ -24,6 +26,7 @@ export interface IndexChatParams extends Record<string, unknown> {
     tags?: string[];
     model_name?: string;
     chunk_size?: number;
+    index_name?: string;
 }
 
 export interface IndexFileParams extends Record<string, unknown> {
@@ -31,12 +34,14 @@ export interface IndexFileParams extends Record<string, unknown> {
     tags?: string[];
     model_name?: string;
     chunk_size?: number;
+    index_name?: string;
 }
 
 export interface SearchParams extends Record<string, unknown> {
     query: string;
     n_results?: number;
     model_name?: string;
+    index_name?: string;
 }
 
 export interface IndexSource {
@@ -87,6 +92,9 @@ export class MCPClient {
         if (licenseKey) {
             env.ANYRAG_LICENSE_KEY = licenseKey;
         }
+        
+        // Pass storage directory via environment variable
+        env.ANYRAG_STORAGE_DIR = this.storageDir;
 
         this.transport = new StdioClientTransport({
             command: this.pythonPath,
@@ -153,7 +161,7 @@ export class MCPClient {
             arguments: cleanParams
         });
 
-        return (result.content as any)[0];
+        return JSON.parse((result.content as any)[0].text);
     }
 
     async indexGitHubRepo(params: IndexGitHubRepoParams): Promise<any> {
@@ -175,7 +183,7 @@ export class MCPClient {
             arguments: cleanParams
         });
 
-        return (result.content as any)[0];
+        return JSON.parse((result.content as any)[0].text);
     }
 
     async indexChat(params: IndexChatParams): Promise<any> {
@@ -196,7 +204,7 @@ export class MCPClient {
 
         });
 
-        return (result.content as any)[0];
+        return JSON.parse((result.content as any)[0].text);
     }
 
     async indexFile(params: IndexFileParams): Promise<any> {
@@ -217,7 +225,11 @@ export class MCPClient {
 
         });
 
-        return (result.content as any)[0];
+        // DEBUG: Log the raw response text
+        const rawText = (result.content as any)[0].text;
+        console.log('MCPClient.indexFile rawText:', rawText);
+
+        return JSON.parse(rawText);
     }
 
     async search(params: SearchParams): Promise<SearchResult> {
@@ -233,94 +245,168 @@ export class MCPClient {
         return JSON.parse((result.content as any)[0].text);
     }
 
-    async showIndex(activeOnly: boolean = false, tags?: string[]): Promise<{ sources: IndexSource[] }> {
+    async showIndex(activeOnly: boolean = false, tags?: string[], indexName: string = 'default'): Promise<{ sources: IndexSource[] }> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'show_index',
-            arguments: { active_only: activeOnly, tags } as Record<string, unknown>
+            arguments: { active_only: activeOnly, tags, index_name: indexName } as Record<string, unknown>
         });
 
         return JSON.parse((result.content as any)[0].text);
     }
 
-    async clearIndex(): Promise<any> {
+    async clearIndex(indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'clear_index',
-            arguments: {} as Record<string, unknown>
+            arguments: { index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
     }
 
-    async removeSource(sourceId: string): Promise<any> {
+    async removeSource(sourceId: string, indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'remove_source',
-            arguments: { source_id: sourceId } as Record<string, unknown>
+            arguments: { source_id: sourceId, index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
     }
 
-    async activateSource(sourceId: string): Promise<any> {
+    async activateSource(sourceId: string, indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'activate_source',
-            arguments: { source_id: sourceId } as Record<string, unknown>
+            arguments: { source_id: sourceId, index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
     }
 
-    async deactivateSource(sourceId: string): Promise<any> {
+    async deactivateSource(sourceId: string, indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'deactivate_source',
-            arguments: { source_id: sourceId } as Record<string, unknown>
+            arguments: { source_id: sourceId, index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
     }
 
-    async addTags(sourceId: string, tags: string[]): Promise<any> {
+    async addTags(sourceId: string, tags: string[], indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'add_tags',
-            arguments: { source_id: sourceId, tags } as Record<string, unknown>
+            arguments: { source_id: sourceId, tags, index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
     }
 
-    async removeTags(sourceId: string, tags: string[]): Promise<any> {
+    async removeTags(sourceId: string, tags: string[], indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
         }
 
         const result = await this.client.callTool({
             name: 'remove_tags',
-            arguments: { source_id: sourceId, tags } as Record<string, unknown>
+            arguments: { source_id: sourceId, tags, index_name: indexName } as Record<string, unknown>
         });
 
         return (result.content as any)[0];
+    }
+
+    // Index management methods
+    async createIndex(indexName: string, modelName?: string): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const cleanParams: Record<string, unknown> = { index_name: indexName };
+        if (modelName) {
+            cleanParams.model_name = modelName;
+        }
+
+        const result = await this.client.callTool({
+            name: 'create_index',
+            arguments: cleanParams
+        });
+
+        const content = (result.content as any)[0];
+        if (content.type === 'text') {
+            return JSON.parse(content.text);
+        }
+        return content;
+    }
+
+    async listIndices(): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'list_indices',
+            arguments: {} as Record<string, unknown>
+        });
+
+        const content = (result.content as any)[0];
+        if (content.type === 'text') {
+            return JSON.parse(content.text);
+        }
+        return content;
+    }
+
+    async deleteIndex(indexName: string): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'delete_index_by_name',
+            arguments: { index_name: indexName } as Record<string, unknown>
+        });
+
+        const content = (result.content as any)[0];
+        if (content.type === 'text') {
+            return JSON.parse(content.text);
+        }
+        return content;
+    }
+
+    async renameIndex(oldName: string, newName: string): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'rename_index',
+            arguments: { old_name: oldName, new_name: newName } as Record<string, unknown>
+        });
+
+        const content = (result.content as any)[0];
+        if (content.type === 'text') {
+            return JSON.parse(content.text);
+        }
+        return content;
     }
 }
