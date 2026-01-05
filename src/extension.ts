@@ -14,13 +14,16 @@ let indexStatusBarItem: vscode.StatusBarItem;
 let purchaseFlow: PurchaseFlow;
 let activeIndex: string = 'default';
 
-async function registerMCPServer(pythonPath: string, launcherPath: string, licenseKey?: string) {
+async function registerMCPServer(pythonPath: string, launcherPath: string, licenseKey?: string, storageDir?: string) {
     const config = vscode.workspace.getConfiguration();
     const mcpServers = config.get<Record<string, any>>('mcp.servers') || {};
     
     const env: Record<string, string> = {};
     if (licenseKey) {
         env.ANYRAG_LICENSE_KEY = licenseKey;
+    }
+    if (storageDir) {
+        env.ANYRAG_STORAGE_DIR = storageDir;
     }
     
     mcpServers.anyrag = {
@@ -65,7 +68,6 @@ async function updateLicenseContext() {
     }
     
     const hasPro = await licenseManager.hasProAccess();
-    console.log(`Setting context anyrag:pro:active = ${hasPro}`);
     await vscode.commands.executeCommand('setContext', 'anyrag:pro:active', hasPro);
 }
 
@@ -80,21 +82,17 @@ Click to switch indices`;
 }
 
 export async function activate(context: vscode.ExtensionContext) {
-    console.log('=== AnyRAG Pilot Extension Activating === TIMESTAMP:', Date.now());
 
     try {
         // Initialize license manager
         licenseManager = new LicenseManager(context);
-        console.log('License manager initialized');
 
         // Initialize purchase flow
         purchaseFlow = new PurchaseFlow(context);
-        console.log('Purchase flow initialized');
 
         // Initialize AnyRAG server (setup only, don't start yet)
         anyragServer = new AnyRAGServer(context);
         const licenseKey = await licenseManager.getLicenseKey();
-        
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
             title: 'AnyRAG Pilot',
@@ -106,46 +104,39 @@ export async function activate(context: vscode.ExtensionContext) {
 
         // Register MCP server in VS Code settings
         const storageUri = context.globalStorageUri;
+        const isDevMode = process.env.ANYRAG_DEV_MODE === '1';
+        const venvDir = isDevMode ? 'venv-dev' : 'venv';
         const pythonPath = process.platform === 'win32' 
-            ? path.join(storageUri.fsPath, 'venv', 'Scripts', 'python.exe')
-            : path.join(storageUri.fsPath, 'venv', 'bin', 'python3');
+            ? path.join(storageUri.fsPath, venvDir, 'Scripts', 'python.exe')
+            : path.join(storageUri.fsPath, venvDir, 'bin', 'python3');
         const launcherPath = path.join(storageUri.fsPath, 'run_server.py');
-        
-        await registerMCPServer(pythonPath, launcherPath, licenseKey);
-        
-        console.log('AnyRAG MCP server registered globally');
+        await registerMCPServer(pythonPath, launcherPath, licenseKey, storageUri.fsPath);
 
         // Connect private MCP client for command handlers
         mcpClient = new MCPClient(pythonPath, launcherPath, storageUri.fsPath);
         await mcpClient.connect(licenseKey);
-        console.log('MCP client connected for extension commands');
-        
+
         // Register VS Code commands for UI integration
         registerCommands(context);
-        
+
         // Register chat participant
         const chatParticipant = new ChatParticipant(mcpClient, () => activeIndex);
         const participant = vscode.chat.createChatParticipant('anyrag-pilot.assistant', chatParticipant.handleRequest.bind(chatParticipant));
         context.subscriptions.push(participant);
-        console.log('Chat participant registered');
-        
+
         // Create status bar item
         statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-        console.log('About to update status bar and license context...');
         await updateStatusBar();
-        console.log('Status bar updated');
         statusBarItem.command = 'anyrag-pilot.showLicenseInfo';
         statusBarItem.show();
         context.subscriptions.push(statusBarItem);
-        
+
         // Create index selector status bar item
         indexStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
         updateIndexStatusBar();
         indexStatusBarItem.command = 'anyrag-pilot.switchIndex';
         indexStatusBarItem.show();
         context.subscriptions.push(indexStatusBarItem);
-        
-        console.log('AnyRAG Pilot extension activated successfully');
 
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to activate AnyRAG Pilot: ${error}`);
@@ -276,12 +267,8 @@ function registerCommands(context: vscode.ExtensionContext) {
                     });
                 });
                 
-                // Parse the MCP response
-                let chunkCount = 0;
-                if (result?.text) {
-                    const parsed = JSON.parse(result.text);
-                    chunkCount = parsed.total_chunks || 0;
-                }
+                // Get chunk count from response
+                const chunkCount = result.total_chunks || 0;
                 
                 vscode.window.showInformationMessage(`✓ Indexed ${fileName} (${chunkCount} chunks)`);
             } catch (error) {
@@ -305,7 +292,7 @@ function registerCommands(context: vscode.ExtensionContext) {
             try {
                 const result = await vscode.window.withProgress({
                     location: vscode.ProgressLocation.Notification,
-                    title: `Indexing ${repoUrl}`,
+                    title: `Indexing ${repoUrl} into "${activeIndex}"`,
                     cancellable: false
                 }, async (progress) => {
                     progress.report({ message: 'Cloning and indexing repository...', increment: -1 });
@@ -317,7 +304,7 @@ function registerCommands(context: vscode.ExtensionContext) {
                     });
                 });
                 
-                vscode.window.showInformationMessage(`✓ Indexed ${result.files_indexed} files from ${repoUrl}`);
+                vscode.window.showInformationMessage(`✓ Indexed ${result.files_indexed} files from ${repoUrl} into index "${activeIndex}"`);
             } catch (error: any) {
                 // MCP SDK timeout - indexing continues silently in background
                 if (!error.message?.includes('timeout') && !error.message?.includes('timed out')) {
@@ -332,9 +319,8 @@ function registerCommands(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('anyrag-pilot.showIndex', async () => {
             try {
                 const indexData = await mcpClient.showIndex(false, undefined, activeIndex);
-                
                 if (indexData.sources.length === 0) {
-                    vscode.window.showInformationMessage('No sources indexed yet. Use "Index Workspace" or "Index GitHub Repo" to get started.');
+                    vscode.window.showInformationMessage(`No sources indexed in "${activeIndex}" yet. Use "Index Workspace" or "Index GitHub Repo" to get started.`);
                     return;
                 }
 
@@ -785,7 +771,6 @@ function registerCommands(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('anyrag-pilot.listIndices', async () => {
             try {
                 const result = await mcpClient.listIndices();
-                console.log('[listIndices] Result:', JSON.stringify(result, null, 2));
                 
                 if (result.error) {
                     vscode.window.showErrorMessage(`Failed to list indices: ${result.error}`);

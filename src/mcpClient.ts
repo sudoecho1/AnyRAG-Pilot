@@ -92,13 +92,14 @@ export class MCPClient {
         if (licenseKey) {
             env.ANYRAG_LICENSE_KEY = licenseKey;
         }
+        
+        // Pass storage directory via environment variable
+        env.ANYRAG_STORAGE_DIR = this.storageDir;
 
-        const os = require('os');
         this.transport = new StdioClientTransport({
             command: this.pythonPath,
             args: [this.launcherPath],
-            env,
-            cwd: this.storageDir
+            env
         });
 
         this.client = new Client({
@@ -160,7 +161,7 @@ export class MCPClient {
             arguments: cleanParams
         });
 
-        return (result.content as any)[0];
+        return JSON.parse((result.content as any)[0].text);
     }
 
     async indexGitHubRepo(params: IndexGitHubRepoParams): Promise<any> {
@@ -182,7 +183,7 @@ export class MCPClient {
             arguments: cleanParams
         });
 
-        return (result.content as any)[0];
+        return JSON.parse((result.content as any)[0].text);
     }
 
     async indexChat(params: IndexChatParams): Promise<any> {
@@ -203,7 +204,7 @@ export class MCPClient {
 
         });
 
-        return (result.content as any)[0];
+        return JSON.parse((result.content as any)[0].text);
     }
 
     async indexFile(params: IndexFileParams): Promise<any> {
@@ -224,7 +225,11 @@ export class MCPClient {
 
         });
 
-        return (result.content as any)[0];
+        // DEBUG: Log the raw response text
+        const rawText = (result.content as any)[0].text;
+        console.log('MCPClient.indexFile rawText:', rawText);
+
+        return JSON.parse(rawText);
     }
 
     async search(params: SearchParams): Promise<SearchResult> {
