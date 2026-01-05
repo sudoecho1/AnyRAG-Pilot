@@ -8,10 +8,16 @@ export class AnyRAGServer {
     private pythonPath: string;
     private binaryPath: string;
     private launcherPath: string;
+    private isDevMode: boolean;
+    private devSourcePath: string;
 
     constructor(private context: vscode.ExtensionContext) {
         const storageUri = context.globalStorageUri;
-        this.venvPath = path.join(storageUri.fsPath, 'venv');
+        // Dev mode for internal development only - not exposed to end users
+        // Set ANYRAG_DEV_MODE=1 and ANYRAG_DEV_SOURCE=/path/to/AnyRAG to enable
+        this.isDevMode = process.env.ANYRAG_DEV_MODE === '1';
+        this.devSourcePath = process.env.ANYRAG_DEV_SOURCE || '';
+        this.venvPath = path.join(storageUri.fsPath, this.isDevMode ? 'venv-dev' : 'venv');
         this.pythonPath = this.getPythonExecutable();
         this.binaryPath = this.getBinaryPath();
         this.launcherPath = path.join(storageUri.fsPath, 'run_server.py');
@@ -82,17 +88,27 @@ export class AnyRAGServer {
             await this.createVenv();
         }
 
-        // Copy binary to storage
-        const targetBinaryPath = path.join(storageUri.fsPath, path.basename(this.binaryPath));
-        if (!fs.existsSync(targetBinaryPath)) {
-            fs.copyFileSync(this.binaryPath, targetBinaryPath);
+        // In dev mode, install from local source instead of using binary
+        if (this.isDevMode) {
+            if (!this.devSourcePath || !fs.existsSync(this.devSourcePath)) {
+                throw new Error('Dev mode enabled but devSourcePath is not set or does not exist. Please configure anyragPilot.devSourcePath');
+            }
+            // Install dependencies
+            await this.installDependencies();
+            // Install local AnyRAG in editable mode
+            await this.installLocalSource();
+        } else {
+            // Production mode: Copy binary to storage
+            const targetBinaryPath = path.join(storageUri.fsPath, path.basename(this.binaryPath));
+            if (!fs.existsSync(targetBinaryPath)) {
+                fs.copyFileSync(this.binaryPath, targetBinaryPath);
+            }
+            // Install dependencies
+            await this.installDependencies();
         }
 
         // Create launcher script
         await this.createLauncher();
-
-        // Install dependencies
-        await this.installDependencies();
 
         // Don't start the server here - MCP client will start it via stdio transport
     }
@@ -178,6 +194,46 @@ if __name__ == "__main__":
                         resolve();
                     } else {
                         reject(new Error(`Failed to install dependencies (exit code ${code})\n${output}`));
+                    }
+                });
+                
+                proc.on('error', reject);
+            });
+        });
+    }
+
+    private async installLocalSource(): Promise<void> {
+        const pipPath = process.platform === 'win32' 
+            ? path.join(this.venvPath, 'Scripts', 'pip.exe')
+            : path.join(this.venvPath, 'bin', 'pip');
+
+        return new Promise((resolve, reject) => {
+            vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'AnyRAG Pilot (Dev Mode)',
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ message: 'Installing local AnyRAG source...' });
+                
+                const proc = cp.spawn(pipPath, ['install', '-e', this.devSourcePath], {
+                    cwd: this.context.globalStorageUri.fsPath
+                });
+
+                let output = '';
+                proc.stdout?.on('data', (data) => {
+                    output += data.toString();
+                    console.log('[pip dev]', data.toString());
+                });
+                
+                proc.stderr?.on('data', (data) => {
+                    console.error('[pip dev]', data.toString());
+                });
+                
+                proc.on('close', (code) => {
+                    if (code === 0) {
+                        resolve();
+                    } else {
+                        reject(new Error(`Failed to install local AnyRAG (exit code ${code})\n${output}`));
                     }
                 });
                 
