@@ -76,7 +76,39 @@ https://huggingface.co/models?library=sentence-transformers&sort=downloads
 
 AnyRAG validates models automatically and provides clear error messages for incompatible models.
 
-## 📝 License
+## �️ Multi-Index Support (Pro)
+
+**Pro tier** supports creating and managing multiple indices with different embedding models. This lets you organize content by project, language, or use case.
+
+### Creating and Switching Indices
+
+1. **Create index**: `Ctrl+Shift+P` → `AnyRAG Pilot: Create Index`
+2. **Switch index**: Click the index name in the status bar (bottom right) or use `Ctrl+Shift+P` → `AnyRAG Pilot: Switch Index`
+3. **View all indices**: `Ctrl+Shift+P` → `AnyRAG Pilot: List Indices`
+
+### Multi-Index Workflows
+
+**⚠️ Important**: Multi-index behavior varies based on how you interact with AnyRAG:
+
+| Interaction Method | Active Index Behavior |
+|---|---|
+| **Command Palette** commands | ✅ Uses active index from status bar |
+| **`@anyrag` chat participant** | ✅ Uses active index from status bar |
+| **Copilot Chat (direct MCP)** | ⚠️ Always uses "default" index* |
+
+\* When using Copilot Chat directly (without `@anyrag`), you must explicitly specify the index:
+- ❌ "index fastapi/fastapi" → Goes to "default" index
+- ✅ "index fastapi/fastapi into the test index" → Goes to "test" index
+
+**Recommended workflow for multi-index:**
+- Use Command Palette commands (e.g., "Index GitHub Repo", "Index Folder")
+- Or use `@anyrag` chat participant which respects your active index
+
+### Why This Limitation?
+
+The global MCP server (used by Copilot Chat) runs as a separate process and doesn't have access to VS Code extension state like the active index. Command Palette commands and `@anyrag` run through the extension and have full access to your active index selection.
+
+## �📝 License
 
 Commercial software. See LICENSE for details.
 

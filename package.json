@@ -89,6 +89,24 @@
         "title": "AnyRAG Pilot: Index File"
       },
       {
+        "command": "anyrag-pilot.createIndex",
+        "title": "AnyRAG Pilot: Create Index",
+        "when": "anyrag:pro:active"
+      },
+      {
+        "command": "anyrag-pilot.switchIndex",
+        "title": "AnyRAG Pilot: Switch Index"
+      },
+      {
+        "command": "anyrag-pilot.listIndices",
+        "title": "AnyRAG Pilot: List Indices"
+      },
+      {
+        "command": "anyrag-pilot.deleteIndex",
+        "title": "AnyRAG Pilot: Delete Index",
+        "when": "anyrag:pro:active"
+      },
+      {
         "command": "anyrag-pilot.openChat",
         "title": "AnyRAG Pilot: Open Chat"
       }
