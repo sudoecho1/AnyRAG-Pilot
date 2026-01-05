@@ -41,7 +41,13 @@
         "id": "anyrag-pilot.assistant",
         "name": "anyrag",
         "description": "AI assistant with RAG-powered context from your workspace and indexed repositories",
-        "isSticky": true
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "indexchat",
+            "description": "Index this chat conversation for future search"
+          }
+        ]
       }
     ],
     "commands": [
