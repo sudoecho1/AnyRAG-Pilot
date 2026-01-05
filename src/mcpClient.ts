@@ -242,7 +242,18 @@ export class MCPClient {
             arguments: params as Record<string, unknown>
         });
 
-        return JSON.parse((result.content as any)[0].text);
+        const rawText = (result.content as any)[0].text;
+        
+        // Check if the response is an error message
+        if (rawText.startsWith('Error')) {
+            throw new Error(rawText);
+        }
+        
+        try {
+            return JSON.parse(rawText);
+        } catch (e) {
+            throw new Error(`Failed to parse search results: ${rawText.substring(0, 200)}`);
+        }
     }
 
     async showIndex(activeOnly: boolean = false, tags?: string[], indexName: string = 'default'): Promise<{ sources: IndexSource[] }> {
@@ -253,6 +264,19 @@ export class MCPClient {
         const result = await this.client.callTool({
             name: 'show_index',
             arguments: { active_only: activeOnly, tags, index_name: indexName } as Record<string, unknown>
+        });
+
+        return JSON.parse((result.content as any)[0].text);
+    }
+
+    async getIndexInfo(indexName: string = 'default'): Promise<{ success: boolean; index_name: string; model_name: string; document_count: number }> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'get_index_info',
+            arguments: { index_name: indexName } as Record<string, unknown>
         });
 
         return JSON.parse((result.content as any)[0].text);
