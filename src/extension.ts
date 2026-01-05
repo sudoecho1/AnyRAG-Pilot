@@ -324,32 +324,47 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return;
                 }
 
-                const items = indexData.sources.map((source: IndexSource) => {
-                    // Choose icon based on source type
-                    let typeIcon = '$(folder)';
-                    if (source.source_type === 'github') {
-                        typeIcon = '$(repo)';
-                    } else if (source.tags?.includes('file')) {
-                        typeIcon = '$(file)';
-                    } else if (source.tags?.includes('workspace')) {
-                        typeIcon = '$(root-folder)';
-                    }
-                    
-                    const activeStatus = source.active ? '$(check) Active' : '';
-                    
-                    return {
-                        label: `${typeIcon} ${source.source_path}`,
-                        description: activeStatus,
-                        detail: `${(source.chunk_count || 0).toLocaleString()} chunks | Tags: ${source.tags?.join(', ') || 'none'}`,
-                        source
-                    };
-                });
+                // Add back button as first item
+                const items = [
+                    {
+                        label: '$(arrow-left) Back to List Indices',
+                        description: '',
+                        detail: 'Return to indices menu',
+                        source: null as any
+                    },
+                    ...indexData.sources.map((source: IndexSource) => {
+                        // Choose icon based on source type
+                        let typeIcon = '$(folder)';
+                        if (source.source_type === 'github') {
+                            typeIcon = '$(repo)';
+                        } else if (source.tags?.includes('file')) {
+                            typeIcon = '$(file)';
+                        } else if (source.tags?.includes('workspace')) {
+                            typeIcon = '$(root-folder)';
+                        }
+                        
+                        const activeStatus = source.active ? '$(check) Active' : '';
+                        
+                        return {
+                            label: `${typeIcon} ${source.source_path}`,
+                            description: activeStatus,
+                            detail: `${(source.chunk_count || 0).toLocaleString()} chunks | Tags: ${source.tags?.join(', ') || 'none'}`,
+                            source
+                        };
+                    })
+                ];
 
                 const selected = await vscode.window.showQuickPick(items, {
                     placeHolder: 'Select a source to manage'
                 });
 
                 if (!selected) {
+                    return;
+                }
+
+                // Handle back button
+                if (!selected.source) {
+                    await vscode.commands.executeCommand('anyrag-pilot.listIndices');
                     return;
                 }
 
@@ -362,9 +377,14 @@ function registerCommands(context: vscode.ExtensionContext) {
     );
 
     async function showSourceActions(source: IndexSource) {
+        // Check if this is a chat source
+        const isChatSource = source.tags?.includes('chat') || source.tags?.includes('conversation');
+        
         const actions = [
+            { label: '$(arrow-left) Back', description: 'Return to source list', action: 'back' },
             { label: '$(tag) Add Tags', description: 'Add new tags to this source', action: 'addTags' },
             { label: '$(close) Remove Tags', description: 'Remove existing tags', action: 'removeTags' },
+            ...(isChatSource ? [{ label: '$(edit) Rename Chat', description: 'Change chat name', action: 'rename' }] : []),
             source.active 
                 ? { label: '$(debug-pause) Deactivate Source', description: 'Exclude from searches', action: 'deactivate' }
                 : { label: '$(play) Activate Source', description: 'Include in searches', action: 'activate' },
@@ -380,12 +400,21 @@ function registerCommands(context: vscode.ExtensionContext) {
             return;
         }
 
+        if (selected.action === 'back') {
+            // Re-run the command to go back to source list
+            await vscode.commands.executeCommand('anyrag-pilot.showIndex');
+            return;
+        }
+
         switch (selected.action) {
             case 'addTags':
                 await addTagsToSource(source);
                 break;
             case 'removeTags':
                 await removeTagsFromSource(source);
+                break;
+            case 'rename':
+                await renameSource(source);
                 break;
             case 'activate':
                 await vscode.window.withProgress({
@@ -485,6 +514,52 @@ function registerCommands(context: vscode.ExtensionContext) {
             await mcpClient.removeTags(source.source_id, tags, activeIndex);
         });
         vscode.window.showInformationMessage(`Removed tags: ${tags.join(', ')}`);
+    }
+
+    async function renameSource(source: IndexSource) {
+        const newName = await vscode.window.showInputBox({
+            prompt: 'Enter new name for this chat',
+            placeHolder: 'my-chat-name',
+            value: source.source_id,
+            validateInput: (value) => {
+                if (!value || value.trim().length === 0) {
+                    return 'Name cannot be empty';
+                }
+                if (value === source.source_id) {
+                    return 'Name must be different from current name';
+                }
+                // Validate for source_id (alphanumeric, underscores, hyphens, dots)
+                if (!/^[a-zA-Z0-9_\-\.]+$/.test(value)) {
+                    return 'Name can only contain letters, numbers, underscores, hyphens, and dots';
+                }
+                return undefined;
+            }
+        });
+
+        if (!newName) {
+            return;
+        }
+
+        try {
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Renaming chat',
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ message: 'Updating chat name...', increment: -1 });
+                const result = await mcpClient.renameSource(source.source_id, newName.trim(), activeIndex);
+                
+                if (result.text) {
+                    const data = JSON.parse(result.text);
+                    if (!data.success) {
+                        throw new Error(data.error || 'Failed to rename chat');
+                    }
+                }
+            });
+            vscode.window.showInformationMessage(`Renamed "${source.source_id}" to "${newName}"`);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to rename chat: ${error}`);
+        }
     }
 
     // Clear Index
@@ -806,7 +881,8 @@ function registerCommands(context: vscode.ExtensionContext) {
                 
                 // Show action menu
                 const actions = [
-                    { label: '$(arrow-swap) Switch to this index', value: 'switch' },
+                    { label: '$(arrow-left) Back', value: 'back' },
+                    { label: '$(arrow-swap) Switch and show sources', value: 'switch' },
                     { label: '$(edit) Rename this index', value: 'rename' }
                 ];
                 
@@ -823,12 +899,19 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return;
                 }
                 
-                if (action.value === 'switch') {
+                if (action.value === 'back') {
+                    // Re-run the command to go back to index list
+                    await vscode.commands.executeCommand('anyrag-pilot.listIndices');
+                    return;
+                } else if (action.value === 'switch') {
                     if (selected.indexName !== activeIndex) {
                         activeIndex = selected.indexName;
                         updateIndexStatusBar();
                         vscode.window.showInformationMessage(`Switched to index "${activeIndex}"`);
                     }
+                    // Show indexed sources for this index
+                    await vscode.commands.executeCommand('anyrag-pilot.showIndex');
+                    return;
                 } else if (action.value === 'delete') {
                     const confirm = await vscode.window.showWarningMessage(
                         `Delete index "${selected.indexName}" and all its documents?`,

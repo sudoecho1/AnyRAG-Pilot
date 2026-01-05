@@ -319,6 +319,23 @@ export class MCPClient {
         return (result.content as any)[0];
     }
 
+    async renameSource(sourceId: string, newSourceId: string, indexName: string = 'default'): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'rename_source',
+            arguments: { 
+                source_id: sourceId, 
+                new_source_id: newSourceId,
+                index_name: indexName 
+            } as Record<string, unknown>
+        });
+
+        return (result.content as any)[0];
+    }
+
     async activateSource(sourceId: string, indexName: string = 'default'): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
