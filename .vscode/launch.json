@@ -17,7 +17,8 @@
             "preLaunchTask": "npm: compile",
             "env": {
                 "ANYRAG_DEV_MODE": "1",
-                "ANYRAG_DEV_SOURCE": "/home/phil/git/AnyRAG"
+                "ANYRAG_DEV_SOURCE": "/home/phil/git/AnyRAG",
+                "ANYRAG_LICENSE_KEY_FOR_TESTING": "ANYRAG-PRO-eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJ0aWVyIjoicHJvIiwiY3JlYXRlZEF0IjoiMjAyNi0wMS0wNlQxNjo1Mzo1Ni4zNTVaIiwiZXhwaXJlc0F0IjoiMjAyNy0wMS0wNlQxNjo1Mzo1Ni4zNTVaIiwibWF4QWN0aXZhdGlvbnMiOjMsImhhc2giOiI5NmFkNWQwYTJhMmM3YWNjIn0-ee36a1e45c5f649878a5d1aa250f9d9f13d75cf695ecd1dc4400d5a67518b3df"
             }
         },
         {
