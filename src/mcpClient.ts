@@ -269,6 +269,44 @@ export class MCPClient {
         return JSON.parse((result.content as any)[0].text);
     }
 
+    async showLicenseInfo(): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'show_license_info',
+            arguments: {} as Record<string, unknown>
+        });
+
+        const rawText = (result.content as any)[0].text;
+        
+        try {
+            return JSON.parse(rawText);
+        } catch (e) {
+            throw new Error(`Failed to parse license info: ${rawText.substring(0, 200)}`);
+        }
+    }
+
+    async deactivateLicense(): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'deactivate_license',
+            arguments: {} as Record<string, unknown>
+        });
+
+        const rawText = (result.content as any)[0].text;
+        
+        try {
+            return JSON.parse(rawText);
+        } catch (e) {
+            throw new Error(`Failed to parse deactivation result: ${rawText.substring(0, 200)}`);
+        }
+    }
+
     async getIndexInfo(indexName: string = 'default'): Promise<{ success: boolean; index_name: string; model_name: string; document_count: number }> {
         if (!this.client) {
             throw new Error('MCP client not connected');
