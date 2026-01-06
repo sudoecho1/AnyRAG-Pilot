@@ -227,7 +227,7 @@ export class PurchaseFlow {
         const vscode = acquireVsCodeApi();
 
         function purchaseMonthly() {
-            const paypalUrl = 'https://www.sandbox.paypal.com/webapps/billing/plans/subscribe?plan_id=P-8LC165993X096142HNFJXPVA';
+            const paypalUrl = 'https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-0W4127877U406051LNFOZPLY';
             vscode.postMessage({
                 command: 'openPayPal',
                 url: paypalUrl
@@ -235,8 +235,7 @@ export class PurchaseFlow {
         }
 
         function purchaseYearly() {
-            // Using same test URL for now - replace with yearly plan ID when available
-            const paypalUrl = 'https://www.sandbox.paypal.com/webapps/billing/plans/subscribe?plan_id=P-8LC165993X096142HNFJXPVA';
+            const paypalUrl = 'https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-3V288840950294115NFOZPYA';
             vscode.postMessage({
                 command: 'openPayPal',
                 url: paypalUrl
