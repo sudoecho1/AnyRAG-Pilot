@@ -42,7 +42,7 @@ AnyRAG Pilot brings enterprise-grade Retrieval-Augmented Generation (RAG) to you
 - 🏷️ **Chat naming & management** - Rename and organize indexed conversations
 - 🎯 Priority support
 
-**[Upgrade to Pro →](https://ragpilot.com/upgrade)**
+**[Upgrade to Pro →](https://anyrag.sudoecho.com/upgrade)**
 
 ## 🚀 Quick Start
 
