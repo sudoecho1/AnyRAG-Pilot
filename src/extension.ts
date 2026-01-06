@@ -849,6 +849,24 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Switch Index
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.switchIndex', async () => {
+            // Check if user has Pro access
+            const hasPro = await licenseManager.hasProAccess();
+            if (!hasPro) {
+                const upgrade = await vscode.window.showErrorMessage(
+                    'Switching between custom indices requires Pro tier. Community tier uses the default index only.',
+                    { modal: true },
+                    'Upgrade to Pro',
+                    'Learn More'
+                );
+                
+                if (upgrade === 'Upgrade to Pro') {
+                    await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
+                } else if (upgrade === 'Learn More') {
+                    vscode.env.openExternal(vscode.Uri.parse('https://ragpilot.dev/pricing'));
+                }
+                return;
+            }
+            
             try {
                 const indicesResult = await mcpClient.listIndices();
                 

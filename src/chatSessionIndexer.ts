@@ -170,12 +170,17 @@ export class ChatSessionIndexer {
             const chatText = this.chatSessionToText(session);
             const chatName = `chat-${session.sessionId}-${session.customTitle || 'untitled'}`;
             
-            await this.mcpClient.indexChat({
+            const result = await this.mcpClient.indexChat({
                 content: chatText,
                 chat_name: chatName,
                 tags: ['copilot-chat', 'conversation'],
                 index_name: indexName
             });
+
+            // Check if the server returned an error
+            if (result.error) {
+                throw new Error(result.error);
+            }
 
         } catch (err) {
             throw new Error(`Failed to index chat session: ${err}`);
@@ -218,8 +223,24 @@ export class ChatSessionIndexer {
             });
 
             vscode.window.showInformationMessage(`Successfully indexed chat: ${selected.session.title}`);
-        } catch (err) {
-            vscode.window.showErrorMessage(`Failed to index chat: ${err}`);
+        } catch (err: any) {
+            // Check if it's a tier limitation error
+            if (err.message && (err.message.includes('Community tier') || err.message.includes('limit reached'))) {
+                const upgrade = await vscode.window.showErrorMessage(
+                    err.message,
+                    { modal: true },
+                    'Upgrade to Pro',
+                    'Learn More'
+                );
+                
+                if (upgrade === 'Upgrade to Pro') {
+                    await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
+                } else if (upgrade === 'Learn More') {
+                    vscode.env.openExternal(vscode.Uri.parse('https://ragpilot.dev/pricing'));
+                }
+            } else {
+                vscode.window.showErrorMessage(`Failed to index chat: ${err}`);
+            }
         }
     }
 }

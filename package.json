@@ -104,7 +104,7 @@
       },
       {
         "command": "anyrag-pilot.switchIndex",
-        "title": "AnyRAG Pilot: Switch Index"
+        "title": "AnyRAG Pilot: Switch Index (Pro)"
       },
       {
         "command": "anyrag-pilot.listIndices",
