@@ -4,6 +4,7 @@
   "description": "AI-powered semantic search with RAG for VS Code - Privacy-first, GPU-accelerated",
   "version": "0.1.0",
   "publisher": "sudoecho",
+  "icon": "icon.png",
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",

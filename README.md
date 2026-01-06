@@ -1,35 +1,56 @@
+![AnyRAG Pilot Logo](icon-large.png)
+
 # AnyRAG Pilot
 
 **AI-powered semantic search for VS Code with GPU acceleration**
 
-AnyRAG Pilot brings enterprise-grade Retrieval-Augmented Generation (RAG) to your development workflow. Index your workspace, GitHub repositories, and any content - then search with natural language through the @anyrag chat participant.
+AnyRAG Pilot brings enterprise-grade Retrieval-Augmented Generation (RAG) to your development workflow. Index your workspace, GitHub repositories, and any content - then search with natural language.
+
+## 🎯 Two Ways to Use
+
+### **@anyrag Chat Participant** - Focused RAG Search
+**Use when you want answers ONLY from your indexed content**
+- ✅ Guaranteed to search your indexed code/docs only
+- ✅ Always shows source attribution with similarity scores
+- ✅ No contamination from general LLM knowledge
+- 🎯 Perfect for: "How does MY authentication work?" "What's in MY config?"
+
+### **GitHub Copilot + MCP** - Flexible AI Assistant
+**Use when you want Copilot's full capabilities with optional RAG**
+- ✅ Copilot decides when to use your indexed content
+- ✅ Combines your code with general programming knowledge
+- ✅ Broad capabilities beyond just code search
+- 🌐 Perfect for: General coding help, best practices, mixed context questions
 
 ## ✨ Features
 
-- 🤖 **@anyrag Chat Participant** - AI assistant with semantic search over indexed content
-- � **Chat Indexing** - Index conversations with `/indexchat` for future reference
+- 🎯 **@anyrag Chat Participant** - Targeted search of ONLY your indexed content with source attribution
+- 💬 **Chat Indexing** - Index conversations with `/indexchat` (Free: 1 chat, Pro: unlimited)
 - 🚀 **GPU Accelerated** - CUDA/MPS support for lightning-fast embeddings
 - 🔒 **Privacy First** - All processing happens locally on your machine
 - 📚 **Index Anything** - Workspaces, GitHub repos, documentation, chat conversations
-- 🎯 **Semantic Search** - Find relevant context using natural language
+- 🔌 **Model Context Protocol** - Integrates with GitHub Copilot as MCP server
 - 💾 **Persistent Storage** - Indices survive across sessions
-- 🗂️ **Multi-Index Support** - Organize content by project or use case (Pro)
 
 ## 💎 Pro Features ($20/month)
 
-- ✨ Unlimited indexed documents (Free: 100 docs)
-- 📦 Unlimited indexed sources (Free: 3 sources)  
+- ✨ Unlimited indexed documents (Free: 1000 docs)
+- 📦 Unlimited indexed sources (Free: 3 sources)
+- 💬 **Unlimited chat indexing** (Free: 1 chat)
 - 🎨 **Custom embedding models** - Use any HuggingFace model (Free: 3 presets)
-- 💬 **Conversation indexing** - Index and search chat history with `/indexchat`
-- 🗂️ **Multiple indices** - Organize content with unlimited custom indices
-- 🏷️ **Chat naming & management** - Name, rename, and organize indexed chats
+- 🗂️ **Multiple indices** - Organize content by project or use case
+- 🏷️ **Chat naming & management** - Rename and organize indexed conversations
 - 🎯 Priority support
+
+**[Upgrade to Pro →](https://ragpilot.com/upgrade)**
 
 ## 🚀 Quick Start
 
 1. **Install the extension** from VS Code Marketplace
 2. **Index your workspace**: `Ctrl+Shift+P` → `AnyRAG Pilot: Index Workspace`
-3. **Ask questions**: Open chat and use `@anyrag what is the authentication flow?`
+3. **Ask focused questions**: Open chat and use `@anyrag how does authentication work in this codebase?`
+   - @anyrag searches ONLY your indexed content and shows sources
+   - Regular Copilot chat can use indexed content OR general knowledge
 4. **Index conversations**: In chat, use `/indexchat` to save your conversation for future search
 
 ### 💬 Chat Commands
@@ -93,33 +114,23 @@ https://huggingface.co/models?library=sentence-transformers&sort=downloads
 
 AnyRAG validates models automatically and provides clear error messages for incompatible models.
 
-## �️ Multi-Index Support (Pro)
+## 🗂️ Multi-Index Support (Pro)
 
 **Pro tier** supports creating and managing multiple indices with different embedding models. This lets you organize content by project, language, or use case.
 
-### Creating and Managing Indices
+### Quick Guide
 
-1. **Create index**: `Ctrl+Shift+P` → `AnyRAG Pilot: Create Index`
-2. **Switch index**: Click the index name in the status bar (bottom right) or use `Ctrl+Shift+P` → `AnyRAG Pilot: List Indices`
-3. **View all indices**: `Ctrl+Shift+P` → `AnyRAG Pilot: List Indices`
-   - From the list, you can:
-     - **Switch and show sources** - Activate the index and view its contents
-     - **Rename this index** - Change the index name
-     - **Delete this index** - Remove non-default indices
-4. **Navigate back**: All menus include a "← Back" button for easy navigation
+- **Create index**: `Ctrl+Shift+P` → `AnyRAG Pilot: Create Index`
+- **Switch index**: Click the index name in the status bar (bottom right)
+- **Manage indices**: `Ctrl+Shift+P` → `AnyRAG Pilot: List Indices` to view, rename, or delete
 
 ### Managing Sources
 
-`Ctrl+Shift+P` → `AnyRAG Pilot: Show Indexed Sources` to view and manage all indexed content:
-
-**For all sources:**
+Use `Ctrl+Shift+P` → `AnyRAG Pilot: Show Indexed Sources` to:
 - Add/remove tags for organization
-- Activate/deactivate sources to control what's searched
+- Activate/deactivate sources to control search scope
+- Rename chat conversations
 - Remove sources permanently
-
-**For chat sources:**
-- **Rename Chat** - Change the name of indexed conversations
-- Original conversation identity preserved even after renaming
 
 ### Multi-Index Workflows
 
@@ -143,11 +154,13 @@ AnyRAG validates models automatically and provides clear error messages for inco
 
 The global MCP server (used by Copilot Chat) runs as a separate process and doesn't have access to VS Code extension state like the active index. Command Palette commands and `@anyrag` run through the extension and have full access to your active index selection.
 
-## �📝 License
+## 📝 License
 
-Commercial software. See LICENSE for details.
+Commercial software. See [LICENSE](LICENSE) for details.
 
 ## 🛟 Support
 
-- GitHub Issues: https://github.com/sudoecho1/AnyRAG-Pilot/issues
+- **GitHub Issues**: [Report bugs & request features](https://github.com/sudoecho1/AnyRAG-Pilot/issues)
+- **Pro Support**: [Upgrade for priority support](https://anyrag.sudoecho.com/upgrade)
+- **Documentation**: [Full documentation](https://github.com/sudoecho1/AnyRAG-Pilot#readme)
 - Pro Support: Direct developer access
