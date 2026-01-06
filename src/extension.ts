@@ -86,6 +86,9 @@ export async function activate(context: vscode.ExtensionContext) {
     try {
         // Initialize license manager
         licenseManager = new LicenseManager(context);
+        
+        // Set initial license context (will be updated after validation)
+        await updateLicenseContext();
 
         // Initialize purchase flow
         purchaseFlow = new PurchaseFlow(context);
@@ -691,6 +694,24 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Create Index
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.createIndex', async () => {
+            // Check if user has Pro access
+            const hasPro = await licenseManager.hasProAccess();
+            if (!hasPro) {
+                const upgrade = await vscode.window.showErrorMessage(
+                    'Custom indices require Pro tier. Community tier is limited to the default index.',
+                    { modal: true },
+                    'Upgrade to Pro',
+                    'Learn More'
+                );
+                
+                if (upgrade === 'Upgrade to Pro') {
+                    await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
+                } else if (upgrade === 'Learn More') {
+                    vscode.env.openExternal(vscode.Uri.parse('https://ragpilot.dev/pricing'));
+                }
+                return;
+            }
+            
             // Check existing indices first
             let existingIndices: string[] = [];
             try {
@@ -783,7 +804,23 @@ function registerCommands(context: vscode.ExtensionContext) {
                 console.log('[createIndex] Result:', JSON.stringify(result, null, 2));
                 
                 if (result.error) {
-                    vscode.window.showErrorMessage(`Failed to create index: ${result.error}`);
+                    // Check if it's a tier limitation error
+                    if (result.tier === 'community' || result.error.includes('Community tier')) {
+                        const upgrade = await vscode.window.showErrorMessage(
+                            'Custom indices require Pro tier. Community tier is limited to the default index.',
+                            { modal: true },
+                            'Upgrade to Pro',
+                            'Learn More'
+                        );
+                        
+                        if (upgrade === 'Upgrade to Pro') {
+                            await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
+                        } else if (upgrade === 'Learn More') {
+                            vscode.env.openExternal(vscode.Uri.parse('https://ragpilot.dev/pricing'));
+                        }
+                    } else {
+                        vscode.window.showErrorMessage(`Failed to create index: ${result.error}`);
+                    }
                 } else {
                     vscode.window.showInformationMessage(`✓ Created index "${indexName}" with model ${result.model_name}`);
                     // Switch to the new index
@@ -844,6 +881,24 @@ function registerCommands(context: vscode.ExtensionContext) {
     // List Indices
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.listIndices', async () => {
+            // Check if user has Pro access
+            const hasPro = await licenseManager.hasProAccess();
+            if (!hasPro) {
+                const upgrade = await vscode.window.showErrorMessage(
+                    'Viewing custom indices requires Pro tier. Community tier uses the default index only.',
+                    { modal: true },
+                    'Upgrade to Pro',
+                    'Learn More'
+                );
+                
+                if (upgrade === 'Upgrade to Pro') {
+                    await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
+                } else if (upgrade === 'Learn More') {
+                    vscode.env.openExternal(vscode.Uri.parse('https://ragpilot.dev/pricing'));
+                }
+                return;
+            }
+            
             try {
                 const result = await mcpClient.listIndices();
                 
@@ -994,6 +1049,24 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Delete Index
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.deleteIndex', async () => {
+            // Check if user has Pro access
+            const hasPro = await licenseManager.hasProAccess();
+            if (!hasPro) {
+                const upgrade = await vscode.window.showErrorMessage(
+                    'Deleting custom indices requires Pro tier. Community tier is limited to the default index.',
+                    { modal: true },
+                    'Upgrade to Pro',
+                    'Learn More'
+                );
+                
+                if (upgrade === 'Upgrade to Pro') {
+                    await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
+                } else if (upgrade === 'Learn More') {
+                    vscode.env.openExternal(vscode.Uri.parse('https://ragpilot.dev/pricing'));
+                }
+                return;
+            }
+            
             try {
                 const indicesResult = await mcpClient.listIndices();
                 
