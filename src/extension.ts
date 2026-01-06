@@ -97,7 +97,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
         // Initialize AnyRAG server (setup only, don't start yet)
         anyragServer = new AnyRAGServer(context);
-        const licenseKey = await licenseManager.getLicenseKey();
+        
+        // Get license key - use env var for testing in dev mode, otherwise use secrets
+        let licenseKey = await licenseManager.getLicenseKey();
+        if (!licenseKey && process.env.ANYRAG_LICENSE_KEY_FOR_TESTING) {
+            licenseKey = process.env.ANYRAG_LICENSE_KEY_FOR_TESTING;
+            console.log('[Extension] Using license key from env for testing');
+        }
+        console.log('[Extension] License key on startup:', licenseKey ? `${licenseKey.substring(0, 20)}...` : 'NONE');
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
             title: 'AnyRAG Pilot',
@@ -120,6 +127,9 @@ export async function activate(context: vscode.ExtensionContext) {
         // Connect private MCP client for command handlers
         mcpClient = new MCPClient(pythonPath, launcherPath, storageUri.fsPath);
         await mcpClient.connect(licenseKey);
+
+        // Inject MCP client into license manager for tier queries
+        licenseManager.setMCPClient(mcpClient);
 
         // Initialize chat session indexer
         chatSessionIndexer = new ChatSessionIndexer(mcpClient);
@@ -627,11 +637,22 @@ function registerCommands(context: vscode.ExtensionContext) {
                 await mcpClient.connect(licenseKey);
                 // Update global registration
                 const storageUri = context.globalStorageUri;
+                const isDevMode = process.env.ANYRAG_DEV_MODE === '1';
+                const venvDir = isDevMode ? 'venv-dev' : 'venv';
                 const pythonPath = process.platform === 'win32' 
-                    ? path.join(storageUri.fsPath, 'venv', 'Scripts', 'python.exe')
-                    : path.join(storageUri.fsPath, 'venv', 'bin', 'python3');
+                    ? path.join(storageUri.fsPath, venvDir, 'Scripts', 'python.exe')
+                    : path.join(storageUri.fsPath, venvDir, 'bin', 'python3');
                 const launcherPath = path.join(storageUri.fsPath, 'run_server.py');
-                await registerMCPServer(pythonPath, launcherPath, licenseKey);
+                await registerMCPServer(pythonPath, launcherPath, licenseKey, storageUri.fsPath);
+                // Reload window to restart MCP server with new license
+                const reload = await vscode.window.showInformationMessage(
+                    'License activated! Reload window to apply changes?',
+                    'Reload',
+                    'Later'
+                );
+                if (reload === 'Reload') {
+                    vscode.commands.executeCommand('workbench.action.reloadWindow');
+                }
             } else {
                 vscode.window.showErrorMessage(result.message);
             }
