@@ -68,6 +68,7 @@ Use these commands in the `@anyrag` chat participant:
 ## 📋 Requirements
 
 - VS Code 1.90.0 or higher
+- **GitHub Copilot Chat extension** (required for @anyrag chat participant)
 - Python 3.13+ (auto-detected or configure in settings)
 - 4GB+ RAM (8GB+ recommended for large indices)
 - Optional: NVIDIA GPU with CUDA for acceleration
