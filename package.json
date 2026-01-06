@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "publisher": "sudoecho",
   "icon": "icon.png",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/sudoecho1/AnyRAG-Pilot"

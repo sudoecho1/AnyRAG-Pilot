@@ -156,7 +156,7 @@ The global MCP server (used by Copilot Chat) runs as a separate process and does
 
 ## 📝 License
 
-Commercial software. See [LICENSE](LICENSE) for details.
+MIT License - See [LICENSE](LICENSE) for details.
 
 ## 🛟 Support
 
