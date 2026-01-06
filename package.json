@@ -96,8 +96,7 @@
       },
       {
         "command": "anyrag-pilot.createIndex",
-        "title": "AnyRAG Pilot: Create Index",
-        "when": "anyrag:pro:active"
+        "title": "AnyRAG Pilot: Create Index (Pro)"
       },
       {
         "command": "anyrag-pilot.switchIndex",
@@ -105,12 +104,11 @@
       },
       {
         "command": "anyrag-pilot.listIndices",
-        "title": "AnyRAG Pilot: List Indices"
+        "title": "AnyRAG Pilot: List Indices (Pro)"
       },
       {
         "command": "anyrag-pilot.deleteIndex",
-        "title": "AnyRAG Pilot: Delete Index",
-        "when": "anyrag:pro:active"
+        "title": "AnyRAG Pilot: Delete Index (Pro)"
       },
       {
         "command": "anyrag-pilot.openChat",
