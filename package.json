@@ -95,6 +95,10 @@
         "title": "AnyRAG Pilot: Index File"
       },
       {
+        "command": "anyrag-pilot.indexChatSession",
+        "title": "AnyRAG Pilot: Index Chat Session"
+      },
+      {
         "command": "anyrag-pilot.createIndex",
         "title": "AnyRAG Pilot: Create Index",
         "when": "anyrag:pro:active"

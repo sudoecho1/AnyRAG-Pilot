@@ -5,10 +5,12 @@ import { LicenseManager } from './licenseManager.js';
 import { MCPClient, IndexSource } from './mcpClient.js';
 import { PurchaseFlow } from './purchaseFlow.js';
 import { ChatParticipant } from './chatParticipant.js';
+import { ChatSessionIndexer } from './chatSessionIndexer.js';
 
 let anyragServer: AnyRAGServer;
 let licenseManager: LicenseManager;
 let mcpClient: MCPClient;
+let chatSessionIndexer: ChatSessionIndexer;
 let statusBarItem: vscode.StatusBarItem;
 let indexStatusBarItem: vscode.StatusBarItem;
 let purchaseFlow: PurchaseFlow;
@@ -116,11 +118,14 @@ export async function activate(context: vscode.ExtensionContext) {
         mcpClient = new MCPClient(pythonPath, launcherPath, storageUri.fsPath);
         await mcpClient.connect(licenseKey);
 
+        // Initialize chat session indexer
+        chatSessionIndexer = new ChatSessionIndexer(mcpClient);
+
         // Register VS Code commands for UI integration
         registerCommands(context);
 
         // Register chat participant
-        const chatParticipant = new ChatParticipant(mcpClient, () => activeIndex);
+        const chatParticipant = new ChatParticipant(mcpClient, () => activeIndex, chatSessionIndexer, context);
         const participant = vscode.chat.createChatParticipant('anyrag-pilot.assistant', chatParticipant.handleRequest.bind(chatParticipant));
         context.subscriptions.push(participant);
 
@@ -274,6 +279,13 @@ function registerCommands(context: vscode.ExtensionContext) {
             } catch (error) {
                 vscode.window.showErrorMessage(`Indexing failed: ${error}`);
             }
+        })
+    );
+
+    // Index Chat Session
+    context.subscriptions.push(
+        vscode.commands.registerCommand('anyrag-pilot.indexChatSession', async () => {
+            await chatSessionIndexer.selectAndIndexChatSession(context, activeIndex);
         })
     );
 
