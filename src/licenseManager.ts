@@ -29,10 +29,17 @@ export class LicenseManager {
   }
 
   /**
-   * Get current license key (for passing to MCP server)
+   * Get stored license key
    */
   async getLicenseKey(): Promise<string | undefined> {
     return await this.context.secrets.get(LicenseManager.LICENSE_KEY);
+  }
+
+  /**
+   * Store license key in secrets
+   */
+  async storeLicenseKey(licenseKey: string): Promise<void> {
+    await this.context.secrets.store(LicenseManager.LICENSE_KEY, licenseKey);
   }
 
   /**
