@@ -171,7 +171,7 @@ export class PurchaseFlow {
         <div class="pricing-card">
             <div class="plan-name">Pro Monthly</div>
             <div class="price">
-                $20
+                $10
                 <span class="price-period">/month</span>
             </div>
             <ul class="features">
@@ -187,12 +187,12 @@ export class PurchaseFlow {
             <div class="recommended-badge">BEST VALUE</div>
             <div class="plan-name">Pro Yearly</div>
             <div class="price">
-                $200
+                $100
                 <span class="price-period">/year</span>
             </div>
             <ul class="features">
                 <li>All Pro features</li>
-                <li>Save $40/year (2 months free)</li>
+                <li>Save $20/year (2 months free)</li>
                 <li>Priority support</li>
                 <li>Cancel anytime</li>
             </ul>
