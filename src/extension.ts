@@ -88,9 +88,6 @@ export async function activate(context: vscode.ExtensionContext) {
     try {
         // Initialize license manager
         licenseManager = new LicenseManager(context);
-        
-        // Set initial license context (will be updated after validation)
-        await updateLicenseContext();
 
         // Initialize purchase flow
         purchaseFlow = new PurchaseFlow(context);
@@ -130,6 +127,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
         // Inject MCP client into license manager for tier queries
         licenseManager.setMCPClient(mcpClient);
+
+        // Update license context now that MCP is connected
+        await updateLicenseContext();
 
         // Initialize chat session indexer
         chatSessionIndexer = new ChatSessionIndexer(mcpClient);
@@ -627,34 +627,25 @@ function registerCommands(context: vscode.ExtensionContext) {
                 return;
             }
 
-            const result = await licenseManager.activateLicense(licenseKey);
-            if (result.success) {
-                vscode.window.showInformationMessage(result.message);
-                // Update status bar
-                await updateStatusBar();
-                // Reconnect MCP client with new license
-                await mcpClient.disconnect();
-                await mcpClient.connect(licenseKey);
-                // Update global registration
-                const storageUri = context.globalStorageUri;
-                const isDevMode = process.env.ANYRAG_DEV_MODE === '1';
-                const venvDir = isDevMode ? 'venv-dev' : 'venv';
-                const pythonPath = process.platform === 'win32' 
-                    ? path.join(storageUri.fsPath, venvDir, 'Scripts', 'python.exe')
-                    : path.join(storageUri.fsPath, venvDir, 'bin', 'python3');
-                const launcherPath = path.join(storageUri.fsPath, 'run_server.py');
-                await registerMCPServer(pythonPath, launcherPath, licenseKey, storageUri.fsPath);
-                // Reload window to restart MCP server with new license
-                const reload = await vscode.window.showInformationMessage(
-                    'License activated! Reload window to apply changes?',
-                    'Reload',
-                    'Later'
-                );
-                if (reload === 'Reload') {
-                    vscode.commands.executeCommand('workbench.action.reloadWindow');
+            try {
+                // Store license key in secrets
+                await licenseManager.storeLicenseKey(licenseKey);
+                
+                // Activate through MCP (validates and updates Python cache)
+                const result = await mcpClient.activateLicense(licenseKey);
+                
+                if (result.success && result.tier === 'pro') {
+                    vscode.window.showInformationMessage(result.message);
+                    // Update status bar and context
+                    await updateStatusBar();
+                    await updateLicenseContext();
+                } else {
+                    // Remove invalid license
+                    await context.secrets.delete('anyrag.license');
+                    vscode.window.showErrorMessage(result.message || 'License activation failed');
                 }
-            } else {
-                vscode.window.showErrorMessage(result.message);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Activation failed: ${error}`);
             }
         })
     );
@@ -727,24 +718,6 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Create Index
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.createIndex', async () => {
-            // Check if user has Pro access
-            const hasPro = await licenseManager.hasProAccess();
-            if (!hasPro) {
-                const upgrade = await vscode.window.showErrorMessage(
-                    'Custom indices require Pro tier. Community tier is limited to the default index.',
-                    { modal: true },
-                    'Upgrade to Pro',
-                    'Learn More'
-                );
-                
-                if (upgrade === 'Upgrade to Pro') {
-                    await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
-                } else if (upgrade === 'Learn More') {
-                    vscode.env.openExternal(vscode.Uri.parse('https://ragpilot.dev/pricing'));
-                }
-                return;
-            }
-            
             // Check existing indices first
             let existingIndices: string[] = [];
             try {
@@ -870,24 +843,6 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Switch Index
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.switchIndex', async () => {
-            // Check if user has Pro access
-            const hasPro = await licenseManager.hasProAccess();
-            if (!hasPro) {
-                const upgrade = await vscode.window.showErrorMessage(
-                    'Switching between custom indices requires Pro tier. Community tier uses the default index only.',
-                    { modal: true },
-                    'Upgrade to Pro',
-                    'Learn More'
-                );
-                
-                if (upgrade === 'Upgrade to Pro') {
-                    await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
-                } else if (upgrade === 'Learn More') {
-                    vscode.env.openExternal(vscode.Uri.parse('https://ragpilot.dev/pricing'));
-                }
-                return;
-            }
-            
             try {
                 const indicesResult = await mcpClient.listIndices();
                 
@@ -932,24 +887,6 @@ function registerCommands(context: vscode.ExtensionContext) {
     // List Indices
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.listIndices', async () => {
-            // Check if user has Pro access
-            const hasPro = await licenseManager.hasProAccess();
-            if (!hasPro) {
-                const upgrade = await vscode.window.showErrorMessage(
-                    'Viewing custom indices requires Pro tier. Community tier uses the default index only.',
-                    { modal: true },
-                    'Upgrade to Pro',
-                    'Learn More'
-                );
-                
-                if (upgrade === 'Upgrade to Pro') {
-                    await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
-                } else if (upgrade === 'Learn More') {
-                    vscode.env.openExternal(vscode.Uri.parse('https://ragpilot.dev/pricing'));
-                }
-                return;
-            }
-            
             try {
                 const result = await mcpClient.listIndices();
                 
@@ -1100,24 +1037,6 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Delete Index
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.deleteIndex', async () => {
-            // Check if user has Pro access
-            const hasPro = await licenseManager.hasProAccess();
-            if (!hasPro) {
-                const upgrade = await vscode.window.showErrorMessage(
-                    'Deleting custom indices requires Pro tier. Community tier is limited to the default index.',
-                    { modal: true },
-                    'Upgrade to Pro',
-                    'Learn More'
-                );
-                
-                if (upgrade === 'Upgrade to Pro') {
-                    await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
-                } else if (upgrade === 'Learn More') {
-                    vscode.env.openExternal(vscode.Uri.parse('https://ragpilot.dev/pricing'));
-                }
-                return;
-            }
-            
             try {
                 const indicesResult = await mcpClient.listIndices();
                 

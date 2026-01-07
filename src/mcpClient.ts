@@ -288,6 +288,25 @@ export class MCPClient {
         }
     }
 
+    async activateLicense(licenseKey: string): Promise<any> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'activate_license',
+            arguments: { license_key: licenseKey } as Record<string, unknown>
+        });
+
+        const rawText = (result.content as any)[0].text;
+        
+        try {
+            return JSON.parse(rawText);
+        } catch (e) {
+            throw new Error(`Failed to parse activation result: ${rawText.substring(0, 200)}`);
+        }
+    }
+
     async deactivateLicense(): Promise<any> {
         if (!this.client) {
             throw new Error('MCP client not connected');
