@@ -95,12 +95,8 @@ export async function activate(context: vscode.ExtensionContext) {
         // Initialize AnyRAG server (setup only, don't start yet)
         anyragServer = new AnyRAGServer(context);
         
-        // Get license key - use env var for testing in dev mode, otherwise use secrets
-        let licenseKey = await licenseManager.getLicenseKey();
-        if (!licenseKey && process.env.ANYRAG_LICENSE_KEY_FOR_TESTING) {
-            licenseKey = process.env.ANYRAG_LICENSE_KEY_FOR_TESTING;
-            console.log('[Extension] Using license key from env for testing');
-        }
+        // Get license key from secrets
+        const licenseKey = await licenseManager.getLicenseKey();
         console.log('[Extension] License key on startup:', licenseKey ? `${licenseKey.substring(0, 20)}...` : 'NONE');
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
