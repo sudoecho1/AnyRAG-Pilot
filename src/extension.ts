@@ -697,9 +697,9 @@ function registerCommands(context: vscode.ExtensionContext) {
                     await licenseManager.deactivateLicense();
                     await updateStatusBar();
                     vscode.window.showInformationMessage('License deactivated. Switched to Community Edition.');
-                    // Optionally reload window
+                    // Reload window to clear license key from Python process
                     const reload = await vscode.window.showInformationMessage(
-                        'Reload window to apply changes?',
+                        'Reload window to complete deactivation?',
                         'Reload',
                         'Later'
                     );
