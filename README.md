@@ -47,11 +47,12 @@ AnyRAG Pilot brings enterprise-grade Retrieval-Augmented Generation (RAG) to you
 ## 🚀 Quick Start
 
 1. **Install the extension** from VS Code Marketplace
-2. **Index your workspace**: `Ctrl+Shift+P` → `AnyRAG Pilot: Index Workspace`
-3. **Ask focused questions**: Open chat and use `@anyrag how does authentication work in this codebase?`
+2. **Wait for initial setup** (first launch only) - The extension will install Python dependencies, which may take 2-5 minutes. You'll see a progress notification.
+3. **Index your workspace**: `Ctrl+Shift+P` → `AnyRAG Pilot: Index Workspace`
+4. **Ask focused questions**: Open chat and use `@anyrag how does authentication work in this codebase?`
    - @anyrag searches ONLY your indexed content and shows sources
    - Regular Copilot chat can use indexed content OR general knowledge
-4. **Index conversations**: In chat, use `/indexchat` to save your conversation for future search
+5. **Index conversations**: In chat, use `/indexchat` to save your conversation for future search
 
 ### 💬 Chat Commands
 
