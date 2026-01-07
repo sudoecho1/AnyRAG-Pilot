@@ -32,7 +32,7 @@ AnyRAG Pilot brings enterprise-grade Retrieval-Augmented Generation (RAG) to you
 - 🔌 **Model Context Protocol** - Integrates with GitHub Copilot as MCP server
 - 💾 **Persistent Storage** - Indices survive across sessions
 
-## 💎 Pro Features ($20/month)
+## 💎 Pro Features ($10/month)
 
 - ✨ Unlimited indexed documents (Free: 1000 docs)
 - 📦 Unlimited indexed sources (Free: 3 sources)
