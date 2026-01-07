@@ -326,6 +326,44 @@ export class MCPClient {
         }
     }
 
+    async getActiveIndex(): Promise<{ active_index: string }> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'get_active_index',
+            arguments: {} as Record<string, unknown>
+        });
+
+        const rawText = (result.content as any)[0].text;
+        
+        try {
+            return JSON.parse(rawText);
+        } catch (e) {
+            throw new Error(`Failed to parse active index: ${rawText.substring(0, 200)}`);
+        }
+    }
+
+    async setActiveIndex(indexName: string): Promise<{ success: boolean; active_index: string }> {
+        if (!this.client) {
+            throw new Error('MCP client not connected');
+        }
+
+        const result = await this.client.callTool({
+            name: 'set_active_index',
+            arguments: { index_name: indexName } as Record<string, unknown>
+        });
+
+        const rawText = (result.content as any)[0].text;
+        
+        try {
+            return JSON.parse(rawText);
+        } catch (e) {
+            throw new Error(`Failed to parse set active index result: ${rawText.substring(0, 200)}`);
+        }
+    }
+
     async getIndexInfo(indexName: string = 'default'): Promise<{ success: boolean; index_name: string; model_name: string; document_count: number }> {
         if (!this.client) {
             throw new Error('MCP client not connected');

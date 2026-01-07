@@ -828,6 +828,8 @@ function registerCommands(context: vscode.ExtensionContext) {
                     // Switch to the new index
                     activeIndex = indexName;
                     updateIndexStatusBar();
+                    // Persist to backend so MCP tools use this index
+                    await mcpClient.setActiveIndex(activeIndex);
                 }
             } catch (error: any) {
                 console.error('[createIndex] Error:', error);
@@ -866,12 +868,14 @@ function registerCommands(context: vscode.ExtensionContext) {
                 }));
                 
                 const selected = await vscode.window.showQuickPick(items, {
-                    placeHolder: `Current: ${activeIndex}`
+                    placeHolder: `Currentcontext: ${activeIndex}`
                 });
                 
                 if (selected) {
                     activeIndex = selected.indexName;
                     updateIndexStatusBar();
+                    // Persist to backend so MCP tools use this index
+                    await mcpClient.setActiveIndex(activeIndex);
                     vscode.window.showInformationMessage(`Switched to index "${activeIndex}"`);
                 }
             } catch (error: any) {
