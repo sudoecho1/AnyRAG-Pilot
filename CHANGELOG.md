@@ -2,6 +2,18 @@
 
 All notable changes to the "AnyRAG Pilot" extension will be documented in this file.
 
+## [0.1.3] - 2026-01-08
+
+### Documentation
+- Updated README with comprehensive multi-index documentation
+- Added "Managing Sources & Tags" section explaining source organization
+- Clarified difference between index names (Pro) and tags (all tiers)
+- Improved examples to better distinguish index vs tag use cases
+
+### Bug Fixes
+- Removed debug notification popups from extension activation and index switching
+- Fixed corrupted emoji characters in README markdown
+
 ## [0.1.0] - 2026-01-06
 
 ### Initial Release 🚀
