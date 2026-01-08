@@ -118,43 +118,84 @@ AnyRAG validates models automatically and provides clear error messages for inco
 
 ## 🗂️ Multi-Index Support (Pro)
 
-**Pro tier** supports creating and managing multiple indices with different embedding models. This lets you organize content by project, language, or use case.
+**Pro tier** users can create multiple indices with different embedding models to organize content by project, language, or use case.
 
-### Quick Guide
+### Quick Start
 
-- **Create index**: `Ctrl+Shift+P` → `AnyRAG Pilot: Create Index`
-- **Switch index**: Click the index name in the status bar (bottom right)
-- **Manage indices**: `Ctrl+Shift+P` → `AnyRAG Pilot: List Indices` to view, rename, or delete
+1. **Create an index**: `Ctrl+Shift+P` → `AnyRAG Pilot: Create Index`
+2. **Switch indices**: Click the database icon in the status bar (bottom right)
+3. **Manage indices**: Actions available in the index switcher (rename, delete)
 
-### Managing Sources
+Your **active index** (shown in status bar) is automatically used by all commands and searches. Changes persist across sessions.
 
-Use `Ctrl+Shift+P` → `AnyRAG Pilot: Show Indexed Sources` to:
-- Add/remove tags for organization
-- Activate/deactivate sources to control search scope
-- Rename chat conversations
-- Remove sources permanently
+### Example Use Cases
 
-### Multi-Index Workflows
+**Different embedding models:**
+- `code-specialized` - Uses BAAI/bge-large-en-v1.5 for code
+- `docs-quality` - Uses all-mpnet-base-v2 for documentation
+- `fast-search` - Uses all-MiniLM-L6-v2 for quick searches
 
-**⚠️ Important**: Multi-index behavior varies based on how you interact with AnyRAG:
+**Separate projects/clients:**
+- `client-acme` - Acme Corp project
+- `client-beta` - Beta Inc project
+- `personal-projects` - Your side projects
 
-| Interaction Method | Active Index Behavior |
-|---|---|
-| **Command Palette** commands | ✅ Uses active index from status bar |
-| **`@anyrag` chat participant** | ✅ Uses active index from status bar |
-| **Copilot Chat (direct MCP)** | ⚠️ Always uses "default" index* |
+Each index has its own embedding model and completely separate content.
 
-\* When using Copilot Chat directly (without `@anyrag`), you must explicitly specify the index:
-- ❌ "index fastapi/fastapi" → Goes to "default" index
-- ✅ "index fastapi/fastapi into the test index" → Goes to "test" index
+## 🗂️ Managing Sources & Tags
 
-**Recommended workflow for multi-index:**
-- Use Command Palette commands (e.g., "Index GitHub Repo", "Index Folder")
-- Or use `@anyrag` chat participant which respects your active index
+Every time you index content (workspace, GitHub repo, file, or chat), AnyRAG creates a **source** - a logical grouping of that content. Sources can be organized with tags and activated/deactivated to control what's searched.
 
-### Why This Limitation?
+### Viewing Sources
 
-The global MCP server (used by Copilot Chat) runs as a separate process and doesn't have access to VS Code extension state like the active index. Command Palette commands and `@anyrag` run through the extension and have full access to your active index selection.
+`Ctrl+Shift+P` → `AnyRAG Pilot: Show Indexed Sources`
+
+Displays all indexed content with:
+- **Type indicators**: 📁 Folder, 📦 Repo, 📄 File
+- **Active status**: Green checkmark for active sources
+- **Chunk count**: Number of indexed segments
+- **Tags**: Organization labels
+
+### Source Actions
+
+Click any source to:
+- **Add/Remove Tags** - Organize with labels like `docs`, `python`, `important`
+- **Activate/Deactivate** - Control which sources are searched
+- **Rename** - Change chat conversation names
+- **Remove** - Delete source and all its data
+
+### Active vs Inactive Sources
+
+Only **active sources** are included in searches. This lets you:
+- Focus searches on relevant content
+- Switch contexts quickly using tags
+- Keep indexed content without searching it
+
+**Community Tier Limitation:**
+- Only **1 source can be active at a time**
+- Must deactivate current source before activating another
+- Pro: Unlimited active sources
+
+### Using Tags Effectively
+
+**Tag during indexing:**
+```
+Index Workspace → Auto-tagged: workspace, [folder-name]
+Index GitHub Repo → Auto-tagged: github
+Index File → Auto-tagged: file, [filename]
+```
+
+**Organize within your project:**
+- `core` - Main application code
+- `dependencies` - Third-party libraries
+- `docs` - Documentation files
+- `tests` - Test files
+- `deprecated` - Old code to keep but not search
+
+**Community users:** Switch between sources using tags (only 1 active at a time)
+- Working on code: Activate `core` tagged sources
+- Reading docs: Deactivate `core`, activate `docs`
+- Need library reference: Activate `dependencies`
 
 ## 📝 License
 
