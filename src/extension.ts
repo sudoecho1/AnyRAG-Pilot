@@ -86,8 +86,6 @@ Click to switch indices`;
 }
 
 export async function activate(context: vscode.ExtensionContext) {
-    vscode.window.showInformationMessage('DEBUG: AnyRAG Pilot extension activate() called');
-    console.log('DEBUG: AnyRAG Pilot extension activate() called');
     try {
         // Load active index from file if it exists
         try {
@@ -151,8 +149,6 @@ export async function activate(context: vscode.ExtensionContext) {
         // Initialize chat session indexer
         chatSessionIndexer = new ChatSessionIndexer(mcpClient);
 
-        vscode.window.showInformationMessage('DEBUG: Calling registerCommands(context)');
-        console.log('DEBUG: Calling registerCommands(context)');
         // Register VS Code commands for UI integration
         registerCommands(context);
 
@@ -826,10 +822,6 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Switch Index
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.switchIndex', async () => {
-            console.log('============ SWITCHINDEX COMMAND CALLED ============');
-            vscode.window.showInformationMessage('SWITCHINDEX COMMAND STARTED');
-            vscode.window.showInformationMessage('DEBUG: switchIndex command started');
-            console.log('[switchIndex] Command invoked');
             try {
                 const indicesResult = await mcpClient.listIndices();
                 
