@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { AnyRAGServer } from './anyragServer.js';
 import { LicenseManager } from './licenseManager.js';
 import { MCPClient, IndexSource } from './mcpClient.js';
@@ -78,14 +79,34 @@ function updateIndexStatusBar() {
         return;
     }
     
+    console.log(`[updateIndexStatusBar] Updating status bar with activeIndex: ${activeIndex}`);
     indexStatusBarItem.text = `$(database) ${activeIndex}`;
     indexStatusBarItem.tooltip = `Active Index: ${activeIndex}
 Click to switch indices`;
 }
 
 export async function activate(context: vscode.ExtensionContext) {
-
+    vscode.window.showInformationMessage('DEBUG: AnyRAG Pilot extension activate() called');
+    console.log('DEBUG: AnyRAG Pilot extension activate() called');
     try {
+        // Load active index from file if it exists
+        try {
+            const activeIndexFile = path.join(context.globalStorageUri.fsPath, 'active_index.txt');
+            if (fs.existsSync(activeIndexFile)) {
+                const savedIndex = fs.readFileSync(activeIndexFile, 'utf8').trim();
+                if (savedIndex) {
+                    activeIndex = savedIndex;
+                    console.log(`[activate] Loaded active index from file: ${activeIndex}`);
+                }
+            } else {
+                // Create file with default index if it doesn't exist
+                fs.writeFileSync(activeIndexFile, 'default');
+                console.log(`[activate] Created active_index.txt with default index`);
+            }
+        } catch (error) {
+            console.warn(`[activate] Failed to load/create active index file:`, error);
+        }
+        
         // Initialize license manager
         licenseManager = new LicenseManager(context);
 
@@ -130,6 +151,8 @@ export async function activate(context: vscode.ExtensionContext) {
         // Initialize chat session indexer
         chatSessionIndexer = new ChatSessionIndexer(mcpClient);
 
+        vscode.window.showInformationMessage('DEBUG: Calling registerCommands(context)');
+        console.log('DEBUG: Calling registerCommands(context)');
         // Register VS Code commands for UI integration
         registerCommands(context);
 
@@ -158,24 +181,6 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 }
 
-// Helper to get the configured embedding model (resolving 'custom' to actual model name)
-function getEmbeddingModel(): string {
-    const config = vscode.workspace.getConfiguration('anyragPilot');
-    let embeddingModel = config.get<string>('embeddingModel', 'all-MiniLM-L6-v2');
-    
-    // If custom model selected, get the custom model name
-    if (embeddingModel === 'custom') {
-        const customModel = config.get<string>('customEmbeddingModel', '');
-        if (!customModel) {
-            vscode.window.showWarningMessage('Custom embedding model selected but customEmbeddingModel setting is empty. Using default model.');
-            return 'all-MiniLM-L6-v2';
-        }
-        return customModel;
-    }
-    
-    return embeddingModel;
-}
-
 function registerCommands(context: vscode.ExtensionContext) {
     // Index Workspace
     context.subscriptions.push(
@@ -199,7 +204,6 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return await mcpClient.indexFolder({
                         folder_path: folderPath,
                         tags: ['workspace'],
-                        model_name: getEmbeddingModel(),
                         index_name: activeIndex
                     });
                 });
@@ -238,7 +242,6 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return await mcpClient.indexFolder({
                         folder_path: folderPath,
                         tags: ['folder'],
-                        model_name: getEmbeddingModel(),
                         index_name: activeIndex
                     });
                 });
@@ -276,7 +279,6 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return await mcpClient.indexFile({
                         file_path: filePath,
                         tags: ['file', fileName],
-                        model_name: getEmbeddingModel(),
                         index_name: activeIndex
                     });
                 });
@@ -320,7 +322,6 @@ function registerCommands(context: vscode.ExtensionContext) {
                     return await mcpClient.indexGitHubRepo({
                         repo_url: repoUrl,
                         tags: ['github'],
-                        model_name: getEmbeddingModel(),
                         index_name: activeIndex
                     });
                 });
@@ -806,23 +807,7 @@ function registerCommands(context: vscode.ExtensionContext) {
                 console.log('[createIndex] Result:', JSON.stringify(result, null, 2));
                 
                 if (result.error) {
-                    // Check if it's a tier limitation error
-                    if (result.tier === 'community' || result.error.includes('Community tier')) {
-                        const upgrade = await vscode.window.showErrorMessage(
-                            'Custom indices require Pro tier. Community tier is limited to the default index.',
-                            { modal: true },
-                            'Upgrade to Pro',
-                            'Learn More'
-                        );
-                        
-                        if (upgrade === 'Upgrade to Pro') {
-                            await vscode.commands.executeCommand('anyrag-pilot.upgradeToPro');
-                        } else if (upgrade === 'Learn More') {
-                            vscode.env.openExternal(vscode.Uri.parse('https://ragpilot.dev/pricing'));
-                        }
-                    } else {
-                        vscode.window.showErrorMessage(`Failed to create index: ${result.error}`);
-                    }
+                    vscode.window.showErrorMessage(`Failed to create index: ${result.error}`);
                 } else {
                     vscode.window.showInformationMessage(`✓ Created index "${indexName}" with model ${result.model_name}`);
                     // Switch to the new index
@@ -841,6 +826,10 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Switch Index
     context.subscriptions.push(
         vscode.commands.registerCommand('anyrag-pilot.switchIndex', async () => {
+            console.log('============ SWITCHINDEX COMMAND CALLED ============');
+            vscode.window.showInformationMessage('SWITCHINDEX COMMAND STARTED');
+            vscode.window.showInformationMessage('DEBUG: switchIndex command started');
+            console.log('[switchIndex] Command invoked');
             try {
                 const indicesResult = await mcpClient.listIndices();
                 
@@ -850,6 +839,7 @@ function registerCommands(context: vscode.ExtensionContext) {
                 }
                 
                 const indices = indicesResult.indices || [];
+                console.log('[switchIndex] Got indices:', indices);
                 
                 if (indices.length === 0) {
                     vscode.window.showInformationMessage('No indices found. Creating default index...');
@@ -868,14 +858,22 @@ function registerCommands(context: vscode.ExtensionContext) {
                 }));
                 
                 const selected = await vscode.window.showQuickPick(items, {
-                    placeHolder: `Currentcontext: ${activeIndex}`
+                    placeHolder: `Current: ${activeIndex}`
                 });
                 
                 if (selected) {
                     activeIndex = selected.indexName;
+                    
+                    // Write active index to file so all MCP server processes use it
+                    try {
+                        const activeIndexFile = path.join(context.globalStorageUri.fsPath, 'active_index.txt');
+                        fs.writeFileSync(activeIndexFile, activeIndex);
+                    } catch (error) {
+                        console.error('Failed to write active_index.txt:', error);
+                        vscode.window.showErrorMessage(`Failed to persist index switch: ${error}`);
+                    }
+                    
                     updateIndexStatusBar();
-                    // Persist to backend so MCP tools use this index
-                    await mcpClient.setActiveIndex(activeIndex);
                     vscode.window.showInformationMessage(`Switched to index "${activeIndex}"`);
                 }
             } catch (error: any) {
@@ -949,6 +947,15 @@ function registerCommands(context: vscode.ExtensionContext) {
                 } else if (action.value === 'switch') {
                     if (selected.indexName !== activeIndex) {
                         activeIndex = selected.indexName;
+                        
+                        // Write active index to file so all MCP server processes use it
+                        try {
+                            const activeIndexFile = path.join(context.globalStorageUri.fsPath, 'active_index.txt');
+                            fs.writeFileSync(activeIndexFile, activeIndex);
+                        } catch (error) {
+                            console.error('Failed to write active_index.txt:', error);
+                        }
+                        
                         updateIndexStatusBar();
                         vscode.window.showInformationMessage(`Switched to index "${activeIndex}"`);
                     }
@@ -974,6 +981,15 @@ function registerCommands(context: vscode.ExtensionContext) {
                                 // If we deleted the active index, switch to default
                                 if (activeIndex === selected.indexName) {
                                     activeIndex = 'default';
+                                    
+                                    // Write to file so all MCP server processes use it
+                                    try {
+                                        const activeIndexFile = path.join(context.globalStorageUri.fsPath, 'active_index.txt');
+                                        fs.writeFileSync(activeIndexFile, activeIndex);
+                                    } catch (error) {
+                                        console.error('Failed to write active_index.txt:', error);
+                                    }
+                                    
                                     updateIndexStatusBar();
                                 }
                             }
@@ -1087,6 +1103,15 @@ function registerCommands(context: vscode.ExtensionContext) {
                         // If we deleted the active index, switch to default
                         if (activeIndex === selected.indexName) {
                             activeIndex = 'default';
+                            
+                            // Write to file so all MCP server processes use it
+                            try {
+                                const activeIndexFile = path.join(context.globalStorageUri.fsPath, 'active_index.txt');
+                                fs.writeFileSync(activeIndexFile, activeIndex);
+                            } catch (error) {
+                                console.error('Failed to write active_index.txt:', error);
+                            }
+                            
                             updateIndexStatusBar();
                         }
                     }
