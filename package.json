@@ -149,6 +149,17 @@
           "default": 20,
           "minimum": 1,
           "description": "Number of search results to return for RAG context"
+        },
+        "anyragPilot.defaultSearchMode": {
+          "type": "string",
+          "default": "semantic",
+          "enum": ["semantic", "keyword", "hybrid"],
+          "enumDescriptions": [
+            "Vector similarity search - best for conceptual queries",
+            "Exact text match search - best for specific names/identifiers",
+            "Combined semantic + keyword with boosting - balanced approach"
+          ],
+          "description": "Default search mode for RAG queries"
         }
       }
     },
