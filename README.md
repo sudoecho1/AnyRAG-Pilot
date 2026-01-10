@@ -25,7 +25,8 @@ AnyRAG Pilot brings enterprise-grade Retrieval-Augmented Generation (RAG) to you
 ## ✨ Features
 
 - 🎯 **@anyrag Chat Participant** - Targeted search of ONLY your indexed content with source attribution
-- 💬 **Chat Indexing** - Index conversations with `/indexchat` (Free: 1 chat, Pro: unlimited)
+- � **Hybrid Search** - Combines semantic understanding with exact keyword matching for better results
+- �💬 **Chat Indexing** - Index conversations with `/indexchat` (Free: 1 chat, Pro: unlimited)
 - 🚀 **GPU Accelerated** - CUDA/MPS support for lightning-fast embeddings
 - 🔒 **Privacy First** - All processing happens locally on your machine
 - 📚 **Index Anything** - Workspaces, GitHub repos, documentation, chat conversations
@@ -76,6 +77,27 @@ Use these commands in the `@anyrag` chat participant:
 
 ## 🔧 Configuration
 
+### Search Modes
+
+AnyRAG offers three search strategies to match different query types:
+
+- **Semantic** (default) - Vector similarity search
+  - ✅ Best for: Conceptual queries, "how does X work?", understanding relationships
+  - ❌ May miss: Specific names, exact identifiers, proper nouns
+  
+- **Keyword** - Exact text matching with ChromaDB's `$contains`
+  - ✅ Best for: Finding specific names, identifiers, machine names (e.g., "HTB: Previous")
+  - ❌ May miss: Conceptually related content that doesn't use exact terms
+  
+- **Hybrid** - Combines both approaches with score fusion
+  - ✅ Best for: Mixed queries, when you're not sure which mode to use
+  - ⚡ Keyword matches get a 0.3 boost to appear higher in results
+  - 🎯 Gets the best of both semantic understanding and exact matching
+
+**Configure in Settings:** `anyragPilot.defaultSearchMode`
+
+**Note:** For best keyword/hybrid results, use concise queries with exact terms you're looking for.
+
 ### Community Tier Settings
 
 - `anyragPilot.embeddingModel` - Choose from 3 preset models:
@@ -85,6 +107,10 @@ Use these commands in the `@anyrag` chat participant:
 - `anyragPilot.pythonPath` - Manual Python path (auto-detected by default)
 - `anyragPilot.enableGPU` - Enable GPU acceleration (default: true)
 - `anyragPilot.searchResults` - Number of search results (default: 20)
+- `anyragPilot.defaultSearchMode` - Search strategy (default: semantic):
+  - `semantic` - Vector similarity search for conceptual queries
+  - `keyword` - Exact text matching for specific names/identifiers  
+  - `hybrid` - Combined approach with keyword boosting (best for mixed queries)
 
 ### Pro Tier Settings
 
