@@ -93,6 +93,12 @@ export class AnyRAGServer {
             if (!this.devSourcePath || !fs.existsSync(this.devSourcePath)) {
                 throw new Error('Dev mode enabled but devSourcePath is not set or does not exist. Please configure anyragPilot.devSourcePath');
             }
+            // Remove any existing binary to ensure source is used
+            const targetBinaryPath = path.join(storageUri.fsPath, path.basename(this.binaryPath));
+            if (fs.existsSync(targetBinaryPath)) {
+                fs.unlinkSync(targetBinaryPath);
+                console.log('[AnyRAG] Removed binary to use dev source');
+            }
             // Install dependencies
             await this.installDependencies();
             // Install local AnyRAG in editable mode

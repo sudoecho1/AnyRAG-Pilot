@@ -42,6 +42,7 @@ export interface SearchParams extends Record<string, unknown> {
     n_results?: number;
     model_name?: string;
     index_name?: string;
+    search_mode?: 'semantic' | 'keyword' | 'hybrid';
 }
 
 export interface IndexSource {

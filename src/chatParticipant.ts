@@ -45,7 +45,9 @@ export class ChatParticipant {
             const activeIndex = this.getActiveIndex();
             console.log(`[ChatParticipant] Active index retrieved: ${activeIndex}`);
             
-            const searchResults = vscode.workspace.getConfiguration('anyragPilot').get<number>('searchResults', 50);
+            const config = vscode.workspace.getConfiguration('anyragPilot');
+            const searchResults = config.get<number>('searchResults', 50);
+            const searchMode = config.get<'semantic' | 'keyword' | 'hybrid'>('defaultSearchMode', 'hybrid');
 
             // First check what sources are available
             const indexStatus = await this.mcpClient.showIndex(false, undefined, activeIndex);
@@ -61,12 +63,13 @@ export class ChatParticipant {
             }
             
             // Search using MCP server
-            console.log(`[ChatParticipant] Searching with index_name: ${activeIndex}`);
+            console.log(`[ChatParticipant] Searching with index_name: ${activeIndex}, search_mode: ${searchMode}`);
             const searchResult: SearchResult = await this.mcpClient.search({
                 query,
                 n_results: searchResults,
                 // Don't pass model_name - let backend auto-detect from index metadata
-                index_name: activeIndex
+                index_name: activeIndex,
+                search_mode: searchMode
             });
 
             if (!searchResult.results || searchResult.results.length === 0) {
@@ -123,7 +126,7 @@ export class ChatParticipant {
 
             const messages = [
                 vscode.LanguageModelChatMessage.User(
-                    `You are a helpful AI assistant with access to the user's indexed code and documentation. Answer the following question based on the provided context.\n\nContext from indexed sources:\n${contextChunks}\n\nUser question: ${query}\n\nProvide a clear, concise answer based on the context. If the context doesn't contain enough information, say so. Reference specific sources when relevant.`
+                    `You are a helpful AI assistant. Answer the user's question using ONLY the provided context below. The context contains relevant excerpts from the user's indexed documents.\n\nContext:\n${contextChunks}\n\nQuestion: ${query}\n\nInstructions:\n- Base your answer strictly on the context provided\n- If the answer is in the context, provide it confidently\n- Reference the source files when relevant\n- Only say information is missing if you've thoroughly checked all context chunks`
                 )
             ];
 
