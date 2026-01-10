@@ -2,7 +2,7 @@
   "name": "anyrag-pilot",
   "displayName": "AnyRAG Pilot",
   "description": "AI-powered semantic search with RAG for VS Code - Privacy-first, GPU-accelerated",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "sudoecho",
   "icon": "icon.png",
   "license": "MIT",
