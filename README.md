@@ -96,6 +96,8 @@ AnyRAG offers three search strategies to match different query types:
 
 **Configure in Settings:** `anyragPilot.defaultSearchMode`
 
+**Important:** The `defaultSearchMode` setting applies to `@anyrag` chat participant queries. When using AnyRAG MCP tools directly (via GitHub Copilot without @anyrag), you must explicitly specify the `search_mode` parameter in tool calls, as MCP tools use `semantic` by default.
+
 **Note:** For best keyword/hybrid results, use concise queries with exact terms you're looking for.
 
 ### Community Tier Settings
