@@ -2,6 +2,13 @@
 
 All notable changes to the "AnyRAG Pilot" extension will be documented in this file.
 
+## [0.1.6] - 2026-01-17
+
+### Bug Fixes
+- Fixed venv creation to respect `anyragPilot.pythonPath` configuration setting
+- Support both directory paths and direct executable paths for Python configuration
+- Resolves issue where system Python was used instead of pyenv or other configured Python versions
+
 ## [0.1.3] - 2026-01-08
 
 ### Documentation
