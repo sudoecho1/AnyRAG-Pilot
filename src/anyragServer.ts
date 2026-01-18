@@ -120,7 +120,39 @@ export class AnyRAGServer {
     }
 
     private async createVenv(): Promise<void> {
-        const systemPython = await this.findSystemPython();
+        // Use configured Python path if available, otherwise find system Python
+        const config = vscode.workspace.getConfiguration('anyragPilot');
+        let configuredPath = config.get<string>('pythonPath');
+        let systemPython: string | undefined;
+        
+        // If configured path is provided, use it
+        if (configuredPath) {
+            configuredPath = configuredPath.trim();
+            
+            // If configured path is a directory, append the python executable
+            if (fs.existsSync(configuredPath)) {
+                const stats = fs.statSync(configuredPath);
+                if (stats.isDirectory()) {
+                    // Try common python executable names
+                    const candidates = ['python3', 'python'];
+                    for (const candidate of candidates) {
+                        const pythonExe = path.join(configuredPath, candidate);
+                        if (fs.existsSync(pythonExe)) {
+                            systemPython = pythonExe;
+                            break;
+                        }
+                    }
+                } else {
+                    // It's a file, use it directly
+                    systemPython = configuredPath;
+                }
+            }
+        }
+        
+        // Fall back to system Python if configured path didn't work
+        if (!systemPython) {
+            systemPython = await this.findSystemPython();
+        }
         
         return new Promise((resolve, reject) => {
             vscode.window.withProgress({
