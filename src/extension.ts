@@ -17,35 +17,32 @@ let indexStatusBarItem: vscode.StatusBarItem;
 let purchaseFlow: PurchaseFlow;
 let activeIndex: string = 'default';
 
-async function registerMCPServer(pythonPath: string, launcherPath: string, licenseKey?: string, storageDir?: string) {
-    const config = vscode.workspace.getConfiguration();
-    const mcpServers = config.get<Record<string, any>>('mcp.servers') || {};
-    
-    const env: Record<string, string> = {};
-    if (licenseKey) {
-        env.ANYRAG_LICENSE_KEY = licenseKey;
-    }
-    if (storageDir) {
-        env.ANYRAG_STORAGE_DIR = storageDir;
-    }
-    
-    mcpServers.anyrag = {
-        command: pythonPath,
-        args: [launcherPath],
-        env
-    };
-    
-    await config.update('mcp.servers', mcpServers, vscode.ConfigurationTarget.Global);
-}
+function registerMCPServerProvider(context: vscode.ExtensionContext, pythonPath: string, launcherPath: string, storageDir: string) {
+    const provider = vscode.lm.registerMcpServerDefinitionProvider('anyrag-pilot.mcp-server', {
+        onDidChangeMcpServerDefinitions: new vscode.EventEmitter<void>().event,
+        provideMcpServerDefinitions: async () => {
+            const licenseKey = await licenseManager?.getLicenseKey();
+            const env: Record<string, string> = {};
+            
+            if (licenseKey) {
+                env.ANYRAG_LICENSE_KEY = licenseKey;
+            }
+            env.ANYRAG_STORAGE_DIR = storageDir;
 
-async function unregisterMCPServer() {
-    const config = vscode.workspace.getConfiguration();
-    const mcpServers = config.get<Record<string, any>>('mcp.servers') || {};
+            return [new vscode.McpStdioServerDefinition(
+                'AnyRAG',
+                pythonPath,
+                [launcherPath],
+                env,
+                '1.0.0'
+            )];
+        },
+        resolveMcpServerDefinition: async (server: vscode.McpServerDefinition) => {
+            return server;
+        }
+    });
     
-    if (mcpServers.anyrag) {
-        delete mcpServers.anyrag;
-        await config.update('mcp.servers', mcpServers, vscode.ConfigurationTarget.Global);
-    }
+    context.subscriptions.push(provider);
 }
 
 async function updateStatusBar() {
@@ -126,7 +123,7 @@ export async function activate(context: vscode.ExtensionContext) {
             await anyragServer.initialize(licenseKey);
         });
 
-        // Register MCP server in VS Code settings
+        // Register MCP server provider
         const storageUri = context.globalStorageUri;
         const isDevMode = process.env.ANYRAG_DEV_MODE === '1';
         const venvDir = isDevMode ? 'venv-dev' : 'venv';
@@ -134,7 +131,7 @@ export async function activate(context: vscode.ExtensionContext) {
             ? path.join(storageUri.fsPath, venvDir, 'Scripts', 'python.exe')
             : path.join(storageUri.fsPath, venvDir, 'bin', 'python3');
         const launcherPath = path.join(storageUri.fsPath, 'run_server.py');
-        await registerMCPServer(pythonPath, launcherPath, licenseKey, storageUri.fsPath);
+        registerMCPServerProvider(context, pythonPath, launcherPath, storageUri.fsPath);
 
         // Connect private MCP client for command handlers
         mcpClient = new MCPClient(pythonPath, launcherPath, storageUri.fsPath);
@@ -1122,7 +1119,4 @@ export async function deactivate() {
     if (mcpClient) {
         await mcpClient.disconnect();
     }
-    
-    // Unregister MCP server from settings
-    await unregisterMCPServer();
 }

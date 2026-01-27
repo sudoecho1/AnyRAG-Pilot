@@ -40,6 +40,12 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "anyrag-pilot.mcp-server",
+        "label": "AnyRAG Pilot"
+      }
+    ],
     "chatParticipants": [
       {
         "id": "anyrag-pilot.assistant",
