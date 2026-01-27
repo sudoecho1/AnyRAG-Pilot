@@ -2,6 +2,13 @@
 
 All notable changes to the "AnyRAG Pilot" extension will be documented in this file.
 
+## [0.1.7] - 2026-01-26
+
+### Fixed
+- MCP tools now properly appear in GitHub Copilot Chat
+- Switched from settings-based MCP registration to official `vscode.lm.registerMcpServerDefinitionProvider` API
+- Improved extension best practices compliance
+
 ## [0.1.6] - 2026-01-17
 
 ### Bug Fixes
